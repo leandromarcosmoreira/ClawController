@@ -483,18 +483,39 @@ openclaw agent --agent {agent_id} --message "{your message}"
 
 This wakes the agent in its own session and delivers your message.
 
-### Agents Reporting Back
+### Configuring Your Agents
 
-Configure your OpenClaw agents to log progress to ClawController. Add these instructions to your agent's task:
+**Important:** Your agents need instructions to use ClawController correctly. Add the following to each agent's `TOOLS.md` or `AGENTS.md`:
 
-```
-Log your progress:
+```markdown
+## ClawController Integration
+
+**API Base:** `http://localhost:8000/api`
+
+### When assigned a task:
+1. Check for tasks: `GET /api/tasks?assignee_id={your_id}&status=ASSIGNED`
+2. Log progress as you work (every significant step)
+3. When finished, post activity with "completed" or "done"
+4. Wait for human approval
+
+### Logging Activity (REQUIRED while working)
 curl -X POST http://localhost:8000/api/tasks/{TASK_ID}/activity \
   -H "Content-Type: application/json" \
-  -d '{"agent_id": "YOUR_AGENT_ID", "message": "YOUR_UPDATE"}'
+  -d '{"agent_id": "YOUR_AGENT_ID", "message": "What you did"}'
 
-When finished, say "completed" in your activity to move to REVIEW.
+### Task Lifecycle
+- ASSIGNED → Task given to you
+- IN_PROGRESS → Auto-triggers on first activity log
+- REVIEW → Say "completed" in activity to trigger
+- DONE → Human approves (never set this yourself)
+
+### Key Rules
+- Always log activity — progress is tracked via activity logs
+- Don't skip REVIEW — humans approve before DONE
+- Use descriptive updates — helps humans understand progress
 ```
+
+A complete template is available at `AGENT_INSTRUCTIONS.md` in the repo.
 
 ---
 
