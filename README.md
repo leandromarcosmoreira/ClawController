@@ -188,12 +188,18 @@ For production, point this to your backend URL.
 ClawController can generate agent configurations from natural language descriptions:
 
 **Step 1: Describe Your Agent**
+
+![Agent Creation Step 1](screenshots/agent-create-step1.png)
+
 1. Click **+ New Agent**
 2. Describe what you want: *"A market research analyst that understands long term macro while providing micro guidance"*
 3. Or click a template: `Backend Dev`, `Sales Agent`, `Researcher`
 4. Click **Generate Config**
 
 **Step 2: Review & Customize**
+
+![Agent Creation Step 2](screenshots/agent-create-step2.png)
+
 The system generates:
 - **Agent ID & Name** — auto-suggested based on your description
 - **Emoji** — visual identifier
