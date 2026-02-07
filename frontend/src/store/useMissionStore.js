@@ -64,7 +64,7 @@ const transformTask = (apiTask) => ({
     id: d.id,
     label: d.title,
     done: d.completed,
-    attachment: null, // Backend doesn't track attachments yet
+    attachment: d.file_path ? { name: d.title, path: d.file_path } : null,
   })) || [],
   comments: apiTask.comments?.map(c => ({
     id: c.id,

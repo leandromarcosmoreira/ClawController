@@ -125,6 +125,9 @@ export default function TaskModal() {
   const [uploadingForItem, setUploadingForItem] = useState(null)
   const [activityLog, setActivityLog] = useState([])
   const [activityLoading, setActivityLoading] = useState(false)
+  const [previewFile, setPreviewFile] = useState(null)
+  const [previewContent, setPreviewContent] = useState('')
+  const [previewLoading, setPreviewLoading] = useState(false)
   
   // Mention autocomplete state
   const [showMentions, setShowMentions] = useState(false)
@@ -237,6 +240,28 @@ export default function TaskModal() {
   
   const handleRemoveAttachment = (itemId) => {
     removeDeliverableAttachment(task.id, itemId)
+  }
+  
+  const handlePreviewFile = async (attachment) => {
+    setPreviewFile(attachment)
+    setPreviewLoading(true)
+    try {
+      const response = await fetch(`/api/files/preview?path=${encodeURIComponent(attachment.path)}`)
+      if (response.ok) {
+        const text = await response.text()
+        setPreviewContent(text)
+      } else {
+        setPreviewContent('Error loading file preview')
+      }
+    } catch (error) {
+      setPreviewContent('Error loading file preview: ' + error.message)
+    }
+    setPreviewLoading(false)
+  }
+  
+  const closePreview = () => {
+    setPreviewFile(null)
+    setPreviewContent('')
   }
   
   const handleAddComment = async () => {
@@ -470,9 +495,15 @@ curl -X POST http://localhost:8000/api/tasks/${task.id}/comments -H "Content-Typ
                     {item.attachment ? (
                       <div className="attachment-badge">
                         <span className="attachment-icon">{getFileIcon(item.attachment.name)}</span>
-                        <span className="attachment-name">{item.attachment.name}</span>
+                        <button 
+                          className="attachment-name clickable"
+                          onClick={() => handlePreviewFile(item.attachment)}
+                          title="Click to preview"
+                        >
+                          {item.attachment.name}
+                        </button>
                         <a 
-                          href={item.attachment.path} 
+                          href={`/api/files/preview?path=${encodeURIComponent(item.attachment.path)}`}
                           target="_blank" 
                           rel="noopener noreferrer"
                           className="attachment-download"
@@ -777,6 +808,27 @@ curl -X POST http://localhost:8000/api/tasks/${task.id}/comments -H "Content-Typ
           )}
         </div>
       </div>
+      
+      {/* File Preview Modal */}
+      {previewFile && (
+        <div className="preview-overlay" onClick={closePreview}>
+          <div className="preview-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="preview-header">
+              <h3>{previewFile.name}</h3>
+              <button className="preview-close" onClick={closePreview}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="preview-content">
+              {previewLoading ? (
+                <div className="preview-loading">Loading...</div>
+              ) : (
+                <pre className="preview-text">{previewContent}</pre>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

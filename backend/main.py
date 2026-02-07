@@ -86,6 +86,8 @@ class CommentCreate(BaseModel):
 
 class DeliverableCreate(BaseModel):
     title: str
+    file_path: Optional[str] = None
+    file_type: Optional[str] = None  # file, image, link, etc.
 
 class ChatMessageCreate(BaseModel):
     agent_id: str
@@ -633,7 +635,16 @@ def get_tasks(status: Optional[str] = None, assignee_id: Optional[str] = None, d
             "updated_at": task.updated_at.isoformat(),
             "comments_count": len(task.comments),
             "deliverables_count": len(task.deliverables),
-            "deliverables_complete": sum(1 for d in task.deliverables if d.completed)
+            "deliverables_complete": sum(1 for d in task.deliverables if d.completed),
+            "deliverables": [
+                {
+                    "id": d.id,
+                    "title": d.title,
+                    "file_path": d.file_path,
+                    "completed": d.completed,
+                    "completed_at": d.completed_at.isoformat() if d.completed_at else None
+                } for d in task.deliverables
+            ]
         })
     return result
 
@@ -714,6 +725,7 @@ def get_task(task_id: str, db: Session = Depends(get_db)):
             {
                 "id": d.id,
                 "title": d.title,
+                "file_path": d.file_path,
                 "completed": d.completed,
                 "completed_at": d.completed_at.isoformat() if d.completed_at else None
             } for d in task.deliverables
@@ -1275,12 +1287,21 @@ async def add_deliverable(task_id: str, deliverable_data: DeliverableCreate, db:
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     
-    deliverable = Deliverable(task_id=task_id, title=deliverable_data.title)
+    deliverable = Deliverable(
+        task_id=task_id, 
+        title=deliverable_data.title,
+        file_path=deliverable_data.file_path
+    )
     db.add(deliverable)
     db.commit()
     db.refresh(deliverable)
     
-    return {"id": deliverable.id}
+    return {
+        "id": deliverable.id,
+        "title": deliverable.title,
+        "file_path": deliverable.file_path,
+        "completed": deliverable.completed
+    }
 
 @app.patch("/api/deliverables/{deliverable_id}/complete")
 async def complete_deliverable(deliverable_id: str, db: Session = Depends(get_db)):
@@ -2419,3 +2440,33 @@ def delete_agent(agent_id: str):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+# File preview endpoint for deliverables
+@app.get("/api/files/preview")
+async def preview_file(path: str):
+    """Serve file content for preview. Supports text, images, and common formats."""
+    import os
+    import mimetypes
+    from fastapi.responses import FileResponse, PlainTextResponse
+    
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    # Security: only allow files within allowed directories
+    allowed_prefixes = [
+        str(Path.home() / ".openclaw"),
+        "/tmp"
+    ]
+    if not any(path.startswith(prefix) for prefix in allowed_prefixes):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    mime_type, _ = mimetypes.guess_type(path)
+    
+    # For text files, return content directly
+    if mime_type and mime_type.startswith("text/") or path.endswith(('.txt', '.md', '.json', '.yaml', '.yml', '.py', '.js', '.jsx', '.ts', '.tsx', '.css', '.html')):
+        with open(path, 'r') as f:
+            content = f.read()
+        return PlainTextResponse(content)
+    
+    # For other files, serve as download/inline
+    return FileResponse(path, media_type=mime_type)
