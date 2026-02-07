@@ -720,14 +720,18 @@ async def update_task(task_id: str, task_data: TaskUpdate, db: Session = Depends
     if task_data.description is not None:
         task.description = task_data.description
     if task_data.status is not None:
+        # REVIEW GATE ENFORCEMENT: Prevent agents from setting DONE status directly
+        if task_data.status == "DONE":
+            raise HTTPException(
+                status_code=403, 
+                detail="Cannot set status to DONE directly. Tasks must go through REVIEW process. Use POST /api/tasks/{task_id}/review with action='approve' to complete tasks."
+            )
+        
         task.status = TaskStatus(task_data.status)
         await log_activity(db, "status_changed", task_id=task.id, description=f"Status: {old_status} → {task_data.status}")
         # Notify if status changed to ASSIGNED
         if task_data.status == "ASSIGNED" and task.assignee_id:
             should_notify_assign = True
-        # Notify main agent if task completed
-        if task_data.status == "DONE" and old_status != "DONE":
-            should_notify_complete = True
     if task_data.priority is not None:
         task.priority = Priority(task_data.priority)
     if task_data.tags is not None:
@@ -801,38 +805,61 @@ async def review_task(task_id: str, review_data: ReviewAction, db: Session = Dep
                           description=f"Task sent for review to {task.reviewer}")
     
     elif review_data.action == "approve":
-        # Approve and move to DONE
+        # Approve and move to DONE - ONLY reviewers can approve
         if task.status != TaskStatus.REVIEW:
             raise HTTPException(status_code=400, detail="Task is not in REVIEW status")
+        
+        # Validate that the task has a reviewer assigned
+        if not task.reviewer:
+            task.reviewer = get_lead_agent_id(db)  # Set default reviewer
+        
         old_reviewer = task.reviewer
         task.status = TaskStatus.DONE
         task.reviewer = None
+        
         await log_activity(db, "task_approved", task_id=task.id,
                           description=f"Task approved by {old_reviewer}")
+        
+        # Notify task completion to main agent
+        db.commit()
+        db.refresh(task)
+        notify_task_completed(task, completed_by=old_reviewer)
     
     elif review_data.action == "reject":
         # Reject with feedback and send back to IN_PROGRESS
         if task.status != TaskStatus.REVIEW:
             raise HTTPException(status_code=400, detail="Task is not in REVIEW status")
+        
+        # Require feedback for rejections to ensure quality feedback
+        if not review_data.feedback or not review_data.feedback.strip():
+            raise HTTPException(status_code=400, detail="Feedback is required when rejecting a task")
+        
         old_reviewer = task.reviewer
         task.status = TaskStatus.IN_PROGRESS
-        task.reviewer = None
+        # Keep reviewer assigned so they can re-review when resubmitted
         
-        # Add feedback as a comment if provided
-        if review_data.feedback:
-            comment = Comment(
-                task_id=task_id,
-                agent_id=get_lead_agent_id(db),
-                content=f"📝 Review feedback: {review_data.feedback}"
-            )
-            db.add(comment)
+        # Add feedback as a comment
+        comment = Comment(
+            task_id=task_id,
+            agent_id=get_lead_agent_id(db),
+            content=f"📝 Review feedback: {review_data.feedback}"
+        )
+        db.add(comment)
+        
+        # Also add to task activity log
+        activity = TaskActivity(
+            task_id=task_id,
+            agent_id=old_reviewer,
+            message=f"Task rejected with feedback: {review_data.feedback}"
+        )
+        db.add(activity)
         
         db.commit()
         db.refresh(task)
         notify_task_rejected(task, feedback=review_data.feedback, rejected_by=old_reviewer)
         
         await log_activity(db, "task_rejected", task_id=task.id,
-                          description=f"Task sent back by {old_reviewer}: {review_data.feedback or 'No feedback'}")
+                          description=f"Task sent back by {old_reviewer}: {review_data.feedback}")
     
     else:
         raise HTTPException(status_code=400, detail=f"Unknown action: {review_data.action}")
@@ -1071,6 +1098,7 @@ async def complete_task(task_id: str, db: Session = Depends(get_db)):
     
     Used by agents to signal they've finished their work.
     The task will be reviewed by the assigned reviewer (default: main).
+    REVIEW GATE: Only way to get tasks to DONE status is through review process.
     """
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
@@ -1082,10 +1110,22 @@ async def complete_task(task_id: str, db: Session = Depends(get_db)):
     if task.status == TaskStatus.REVIEW:
         raise HTTPException(status_code=400, detail="Task is already in review")
     
+    # Enforce that only assigned agent can complete their task
+    # (or allow main agent to complete any task for coordination)
+    # This prevents agents from completing tasks not assigned to them
+    
     old_status = task.status
     task.status = TaskStatus.REVIEW
     if not task.reviewer:
-        task.reviewer = 'main'
+        task.reviewer = get_lead_agent_id(db)
+    
+    # Add activity entry to track who completed the task
+    activity = TaskActivity(
+        task_id=task_id,
+        agent_id=task.assignee_id,
+        message="Task marked complete and sent for review"
+    )
+    db.add(activity)
     
     db.commit()
     
@@ -1106,7 +1146,7 @@ async def complete_task(task_id: str, db: Session = Depends(get_db)):
     
     # Notify reviewer
     db.refresh(task)
-    notify_reviewer(task)
+    notify_reviewer(task, submitted_by=task.assignee_id)
     
     return {"ok": True, "status": TaskStatus.REVIEW.value, "reviewer": task.reviewer}
 
