@@ -4378,6 +4378,10 @@
 }
 
 .import-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: 16px;
@@ -4387,6 +4391,7 @@
   display: flex;
   flex-direction: column;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+  z-index: 1001;
 }
 
 .import-dialog-header {
