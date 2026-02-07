@@ -128,6 +128,30 @@ npm run dev -- --port 5001 --host 0.0.0.0
 
 ---
 
+## Your First Agent
+
+Once the dashboard is running, create your first agent:
+
+```bash
+# Create a simple developer agent
+curl -X POST http://localhost:8000/api/agents \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "dev",
+    "name": "Dev Agent", 
+    "role": "developer",
+    "description": "Handles coding tasks and technical work",
+    "avatar": "💻",
+    "status": "idle"
+  }'
+```
+
+**Verify:** Refresh your dashboard at http://localhost:5001 and you should see "Dev Agent 💻" in the sidebar.
+
+**Next Steps:** See [Creating Agents](#creating-agents) for AI-assisted agent creation and advanced configuration.
+
+---
+
 ## Architecture
 
 ```
@@ -211,36 +235,75 @@ You can edit any field, refine the SOUL.md, or click **← Refine** to adjust yo
 
 ### Manual Creation (API)
 
+**Complete Example - Lead Agent:**
+
 ```bash
 curl -X POST http://localhost:8000/api/agents \
   -H "Content-Type: application/json" \
   -d '{
-    "id": "dev",
+    "id": "main",
+    "name": "Project Lead",
+    "role": "LEAD",
+    "description": "Primary orchestrator and task reviewer",
+    "avatar": "👤",
+    "status": "STANDBY",
+    "workspace": "/Users/mike/projects"
+  }'
+```
+
+**Expected Response:**
+```json
+{
+  "id": "main",
+  "name": "Project Lead",
+  "role": "LEAD",
+  "description": "Primary orchestrator and task reviewer",
+  "avatar": "👤",
+  "status": "STANDBY"
+}
+```
+
+**Important:** Set exactly **one** agent with `"role": "LEAD"` — this agent will:
+- Receive task completion notifications
+- Be the default reviewer for tasks in REVIEW status
+- Coordinate work across your agent team
+
+**Simple Developer Agent:**
+```bash
+curl -X POST http://localhost:8000/api/agents \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "dev", 
     "name": "Dev Agent",
-    "role": "developer",
+    "role": "INT",
     "avatar": "💻",
-    "status": "idle"
+    "status": "IDLE"
   }'
 ```
 
 ### Agent Roles
 
-| Role | Typical Use |
-|------|-------------|
-| `lead` | Orchestrator agent that delegates to others |
-| `developer` | Coding, debugging, technical tasks |
-| `analyst` | Research, data analysis, reporting |
-| `specialist` | Domain-specific work (trading, design, etc.) |
-| `support` | Customer service, documentation |
+| Role | Badge | Typical Use |
+|------|-------|-------------|
+| `LEAD` | Lead | Orchestrator agent that delegates to others, reviews tasks |
+| `INT` | Int | Integration agents - developers, analysts, general workers |
+| `SPC` | Spc | Specialists - domain experts (trading, design, legal, etc.) |
+
+**Role Guidelines:**
+- **One LEAD required** — handles task reviews and team coordination
+- **Multiple INT agents** — your main workforce for most tasks  
+- **SPC agents** — specialists for domain-specific work
 
 ### Agent Statuses
 
 | Status | Indicator | Meaning |
 |--------|-----------|---------|
-| `working` | 🟢 Green | Currently processing a task |
-| `idle` | 🟡 Yellow | Available, waiting for work |
-| `offline` | ⚫ Gray | Not running |
-| `error` | 🔴 Red | Encountered an error |
+| `WORKING` | 🟢 Green (pulsing) | Currently processing a task |
+| `IDLE` | 🟡 Yellow | Available, waiting for work |
+| `STANDBY` | ⚫ Gray | Configured but inactive - ready to activate |
+| `OFFLINE` | 🔴 Red | Not configured or unreachable |
+
+**Status Updates:** Agent status is automatically detected from OpenClaw session activity and task assignments.
 
 ---
 
@@ -599,6 +662,196 @@ npm run build
 - **Backend:** Run with gunicorn + uvicorn workers
 - **Frontend:** Serve from CDN or nginx
 - **Database:** SQLite works for small teams; PostgreSQL for scale
+
+---
+
+## Troubleshooting
+
+### Port Already in Use
+
+**Problem:** `Error: listen EADDRINUSE: address already in use :::8000` or `:::5001`
+
+**Solution:**
+```bash
+# Find processes using the ports
+lsof -i :8000  # Backend port
+lsof -i :5001  # Frontend port
+
+# Kill processes if needed
+kill -9 <PID>
+
+# Or use different ports
+uvicorn main:app --port 8001  # Backend
+npm run dev -- --port 5002   # Frontend
+```
+
+### CORS Issues with Remote Access
+
+**Problem:** Dashboard shows "Connection Failed" when accessing remotely
+
+**Solution:**
+```bash
+# Backend: Allow all origins (development only)
+uvicorn main:app --host 0.0.0.0 --port 8000
+
+# Frontend: Enable network access
+npm run dev -- --host 0.0.0.0 --port 5001
+
+# Access via: http://YOUR_IP:5001
+```
+
+### No Agents Showing
+
+**Problem:** Dashboard loads but agent sidebar is empty
+
+**Solutions:**
+
+1. **Create your first agent:**
+   ```bash
+   curl -X POST http://localhost:8000/api/agents \
+     -H "Content-Type: application/json" \
+     -d '{"id": "dev", "name": "Dev Agent", "role": "developer", "avatar": "💻", "status": "idle"}'
+   ```
+
+2. **Import from OpenClaw config:**
+   - Click "Import from OpenClaw" in Agent Management
+   - Requires `~/.openclaw/openclaw.json` with configured agents
+
+3. **Check OpenClaw integration:**
+   ```bash
+   # Verify config exists
+   ls ~/.openclaw/openclaw.json
+   
+   # Check API endpoint
+   curl http://localhost:8000/api/openclaw/status
+   ```
+
+### Database Issues
+
+**Problem:** Tasks/agents not persisting or database errors
+
+**Solutions:**
+
+1. **Check database file:**
+   ```bash
+   # Default location
+   ls backend/data/mission_control.db
+   
+   # Create directory if missing
+   mkdir -p backend/data
+   ```
+
+2. **Reset database:**
+   ```bash
+   rm backend/data/mission_control.db
+   # Restart backend - database will recreate automatically
+   ```
+
+3. **Permissions:**
+   ```bash
+   chmod 755 backend/data
+   chmod 644 backend/data/mission_control.db
+   ```
+
+### WebSocket Connection Failed
+
+**Problem:** Dashboard shows "Connection Failed" or no real-time updates
+
+**Solutions:**
+
+1. **Check backend is running:**
+   ```bash
+   curl http://localhost:8000/api/stats
+   ```
+
+2. **Verify WebSocket endpoint:**
+   ```bash
+   # Should show upgrade response
+   curl -i -N -H "Connection: Upgrade" -H "Upgrade: websocket" \
+        http://localhost:8000/ws
+   ```
+
+3. **Browser console errors:**
+   - Open DevTools → Console
+   - Look for WebSocket connection errors
+   - Common cause: backend not running or wrong port
+
+### Agent Status Not Updating
+
+**Problem:** Agents stuck in "OFFLINE" or status doesn't change
+
+**Solutions:**
+
+1. **Check OpenClaw session files:**
+   ```bash
+   # Verify session directory exists
+   ls ~/.openclaw/agents/AGENT_ID/sessions/
+   
+   # Check recent activity
+   find ~/.openclaw/agents/*/sessions -name "*.jsonl" -newermt "1 hour ago"
+   ```
+
+2. **Manual status update:**
+   ```bash
+   curl -X PATCH "http://localhost:8000/api/agents/AGENT_ID/status?status=WORKING"
+   ```
+
+3. **Refresh agents list:**
+   - Click the refresh button in agent sidebar
+   - Or restart the backend to rescan OpenClaw config
+
+### Performance Issues
+
+**Problem:** Dashboard slow or unresponsive
+
+**Solutions:**
+
+1. **Check task count:**
+   ```bash
+   curl http://localhost:8000/api/stats
+   ```
+
+2. **Clear old tasks:**
+   ```bash
+   # Archive completed tasks older than 30 days
+   curl -X DELETE "http://localhost:8000/api/tasks/cleanup?days=30"
+   ```
+
+3. **Database optimization:**
+   ```bash
+   # SQLite vacuum (requires stopping backend)
+   sqlite3 backend/data/mission_control.db "VACUUM;"
+   ```
+
+### API Debugging
+
+**Enable debug mode:**
+```bash
+# Backend with debug logging
+uvicorn main:app --log-level debug --reload
+
+# Check API health
+curl http://localhost:8000/api/stats
+curl http://localhost:8000/api/agents
+curl http://localhost:8000/api/tasks
+```
+
+**Common API errors:**
+- `422 Validation Error` → Check request body format
+- `404 Not Found` → Verify agent/task ID exists
+- `500 Internal Error` → Check backend logs
+
+### Getting Help
+
+1. **Check backend logs** for error messages
+2. **Check browser console** for frontend errors
+3. **Verify all services running** with `ps aux | grep uvicorn`
+4. **Test API directly** with curl commands above
+
+Still having issues? Check the [GitHub Issues](https://github.com/mdonan90/ClawController/issues) or create a new one with:
+- Your OS and versions (Python, Node.js)
+- Full error message
+- Steps to reproduce
 
 ---
 

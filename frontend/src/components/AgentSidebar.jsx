@@ -1,4 +1,4 @@
-import { Users } from 'lucide-react'
+import { Users, Bot, Plus } from 'lucide-react'
 import { useMissionStore } from '../store/useMissionStore'
 
 const roleClasses = {
@@ -19,7 +19,48 @@ export default function AgentSidebar() {
   const agents = useMissionStore((state) => state.agents)
   const selectedAgentId = useMissionStore((state) => state.selectedAgentId)
   const toggleAgentFilter = useMissionStore((state) => state.toggleAgentFilter)
+  const openAgentManagement = useMissionStore((state) => state.openAgentManagement)
   const activeAgents = agents.filter((agent) => agent.status === 'WORKING').length
+
+  // Show empty state when no agents exist
+  if (agents.length === 0) {
+    return (
+      <aside className="sidebar">
+        <div className="sidebar-header">
+          <div className="sidebar-title">
+            <Users size={16} />
+            AGENTS
+          </div>
+          <span className="count-badge">0</span>
+        </div>
+
+        <div className="empty-state">
+          <div className="empty-state-icon">
+            <Bot size={48} />
+          </div>
+          <h3 className="empty-state-title">Welcome to ClawController!</h3>
+          <p className="empty-state-description">
+            Your agent command center is ready. Create your first agent to start orchestrating tasks and automating your workflow.
+          </p>
+          <button 
+            className="empty-state-button"
+            onClick={openAgentManagement}
+          >
+            <Plus size={16} />
+            Create Your First Agent
+          </button>
+          <div className="empty-state-tips">
+            <h4>Quick Tips:</h4>
+            <ul>
+              <li>Agents can be developers, analysts, or specialists</li>
+              <li>Use @mentions to assign tasks to specific agents</li>
+              <li>Agents work together on your projects</li>
+            </ul>
+          </div>
+        </div>
+      </aside>
+    )
+  }
 
   return (
     <aside className="sidebar">

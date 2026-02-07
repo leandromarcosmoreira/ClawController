@@ -1,7 +1,9 @@
 import { useEffect } from 'react'
+import { Download } from 'lucide-react'
 import { useMissionStore } from '../store/useMissionStore'
 import AgentEditModal from './AgentEditModal'
 import AddAgentWizard from './AddAgentWizard'
+import ImportAgentsDialog from './ImportAgentsDialog'
 
 // Status indicator colors
 const statusConfig = {
@@ -75,6 +77,7 @@ export default function AgentManagement() {
   const setEditingAgent = useMissionStore((s) => s.setEditingAgent)
   const openAddAgentWizard = useMissionStore((s) => s.openAddAgentWizard)
   const fetchModels = useMissionStore((s) => s.fetchModels)
+  const openImportDialog = useMissionStore((s) => s.openImportDialog)
   
   // Fetch models when panel opens
   useEffect(() => {
@@ -99,11 +102,17 @@ export default function AgentManagement() {
             <h2>🤖 Agent Management</h2>
             <span className="agent-mgmt-count">{agents.length} agents</span>
           </div>
-          <button className="agent-mgmt-close" onClick={closeAgentManagement}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M18 6L6 18M6 6l12 12" />
-            </svg>
-          </button>
+          <div className="agent-mgmt-header-right">
+            <button className="import-agents-button" onClick={openImportDialog}>
+              <Download size={16} />
+              Import from OpenClaw
+            </button>
+            <button className="agent-mgmt-close" onClick={closeAgentManagement}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
         
         <div className="agent-mgmt-grid">
@@ -123,6 +132,9 @@ export default function AgentManagement() {
       
       {/* Add Agent Wizard */}
       {isAddWizardOpen && <AddAgentWizard />}
+      
+      {/* Import Agents Dialog */}
+      <ImportAgentsDialog />
     </>
   )
 }

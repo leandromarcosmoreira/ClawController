@@ -1,4 +1,4 @@
-import { Plus, Bot } from 'lucide-react'
+import { Plus, Bot, Rocket, Zap, Target } from 'lucide-react'
 import { DndContext, DragOverlay, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { useState } from 'react'
 import { statusColors, statusOrder, useMissionStore } from '../store/useMissionStore'
@@ -51,6 +51,73 @@ export default function KanbanBoard() {
     if (statusOrder.includes(newStatus)) {
       moveTask(taskId, newStatus)
     }
+  }
+
+  // Show empty state when no agents exist
+  if (agents.length === 0) {
+    return (
+      <section className="kanban">
+        <div className="kanban-toolbar">
+          <button className="add-task-button" onClick={openAgentManagement}>
+            <Bot size={16} />
+            Create Agent
+          </button>
+        </div>
+        
+        <div className="kanban-empty-state">
+          <div className="empty-dashboard">
+            <div className="empty-dashboard-icon">
+              <Rocket size={64} />
+            </div>
+            <h2 className="empty-dashboard-title">Ready to Launch Your AI Fleet!</h2>
+            <p className="empty-dashboard-description">
+              ClawController is your mission control for AI agents. Create your first agent to start automating tasks, 
+              managing projects, and orchestrating your workflow.
+            </p>
+            
+            <div className="getting-started-steps">
+              <div className="step">
+                <div className="step-icon">
+                  <Bot size={24} />
+                </div>
+                <div className="step-content">
+                  <h3>1. Create Your First Agent</h3>
+                  <p>Design an AI agent with a specific role (developer, analyst, manager)</p>
+                </div>
+              </div>
+              
+              <div className="step">
+                <div className="step-icon">
+                  <Target size={24} />
+                </div>
+                <div className="step-content">
+                  <h3>2. Assign Tasks</h3>
+                  <p>Create tasks and mention agents with @agentname to assign work</p>
+                </div>
+              </div>
+              
+              <div className="step">
+                <div className="step-icon">
+                  <Zap size={24} />
+                </div>
+                <div className="step-content">
+                  <h3>3. Watch the Magic</h3>
+                  <p>Your agents collaborate, complete tasks, and keep you updated</p>
+                </div>
+              </div>
+            </div>
+            
+            <button 
+              className="primary-cta-button"
+              onClick={openAgentManagement}
+            >
+              <Plus size={20} />
+              Create Your First Agent
+            </button>
+          </div>
+        </div>
+      </section>
+    )
   }
 
   return (

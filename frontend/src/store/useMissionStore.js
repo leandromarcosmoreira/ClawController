@@ -897,6 +897,40 @@ export const useMissionStore = create((set, get) => ({
     }
   },
   
+  // ============ OpenClaw Import ============
+  fetchOpenClawAgents: async () => {
+    try {
+      const agents = await api.fetchOpenClawAgents()
+      set({ openClawAgents: agents })
+      return agents
+    } catch (error) {
+      console.error('Failed to fetch OpenClaw agents:', error)
+      set({ openClawAgents: [] })
+      throw error
+    }
+  },
+  
+  importAgentsFromOpenClaw: async (agentIds) => {
+    try {
+      set({ loadingAgentManagement: true })
+      const result = await api.importAgentsFromOpenClaw(agentIds)
+      // Refresh agents list to include newly imported agents
+      await get().refreshAgents()
+      set({ loadingAgentManagement: false })
+      return result
+    } catch (error) {
+      console.error('Failed to import agents:', error)
+      set({ loadingAgentManagement: false })
+      throw error
+    }
+  },
+  
+  // Import dialog state
+  isImportDialogOpen: false,
+  openClawAgents: [],
+  openImportDialog: () => set({ isImportDialogOpen: true }),
+  closeImportDialog: () => set({ isImportDialogOpen: false }),
+  
   // ============ Checklist / Deliverables ============
   toggleChecklistItem: async (taskId, checklistItemId) => {
     try {

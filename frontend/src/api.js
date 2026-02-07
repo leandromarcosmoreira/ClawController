@@ -71,6 +71,13 @@ export async function fetchDatabaseAgents() {
 // Alias for backward compatibility
 export const fetchAgentsWithOpenClaw = fetchAgents
 
+export async function importAgentsFromOpenClaw(agentIds) {
+  return fetchAPI('/api/openclaw/import', {
+    method: 'POST',
+    body: JSON.stringify({ agent_ids: agentIds }),
+  })
+}
+
 // ============ Tasks ============
 export async function fetchTasks(filters = {}) {
   const params = new URLSearchParams()

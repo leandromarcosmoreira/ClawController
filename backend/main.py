@@ -470,6 +470,128 @@ def get_openclaw_status():
         "config_path": str(config_path)
     }
 
+class ImportAgentsRequest(BaseModel):
+    agent_ids: List[str]
+
+@app.post("/api/openclaw/import")
+async def import_agents_from_openclaw(import_request: ImportAgentsRequest, db: Session = Depends(get_db)):
+    """Import selected agents from OpenClaw config into ClawController database."""
+    home = Path.home()
+    config_path = home / ".openclaw" / "openclaw.json"
+    
+    if not config_path.exists():
+        raise HTTPException(status_code=404, detail="OpenClaw config not found")
+    
+    try:
+        with open(config_path) as f:
+            config = json.load(f)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to parse OpenClaw config: {str(e)}")
+    
+    agents_config = config.get("agents", {})
+    agent_list = agents_config.get("list", [])
+    
+    imported_agents = []
+    skipped_agents = []
+    
+    for agent_id in import_request.agent_ids:
+        # Check if agent already exists in database
+        existing_agent = db.query(Agent).filter(Agent.id == agent_id).first()
+        if existing_agent:
+            skipped_agents.append({"id": agent_id, "reason": "Already exists"})
+            continue
+        
+        # Find agent in config
+        agent_config = None
+        for agent in agent_list:
+            if agent.get("id") == agent_id:
+                agent_config = agent
+                break
+        
+        if not agent_config:
+            skipped_agents.append({"id": agent_id, "reason": "Not found in OpenClaw config"})
+            continue
+        
+        # Get agent details
+        identity = agent_config.get("identity", {})
+        name = identity.get("name") or agent_config.get("name") or agent_id
+        emoji = identity.get("emoji") or "🤖"
+        
+        # Determine role based on agent configuration
+        role = AgentRole.INT  # Default to integration agent
+        if agent_id == "main":
+            role = AgentRole.LEAD
+        
+        # Get description
+        descriptions = {
+            "main": "Primary orchestrator and squad lead",
+        }
+        description = descriptions.get(agent_id, f"Agent: {name}")
+        
+        # Get real-time status from session files
+        status = get_agent_status_from_sessions(agent_id)
+        agent_status = AgentStatus.STANDBY  # Default
+        if status == "WORKING":
+            agent_status = AgentStatus.WORKING
+        elif status == "IDLE":
+            agent_status = AgentStatus.IDLE
+        elif status == "STANDBY":
+            agent_status = AgentStatus.STANDBY
+        else:
+            agent_status = AgentStatus.OFFLINE
+        
+        # Create agent in database
+        new_agent = Agent(
+            id=agent_id,
+            name=name,
+            role=role,
+            description=description,
+            avatar=emoji,
+            status=agent_status,
+            workspace=agent_config.get("workspace")
+        )
+        
+        db.add(new_agent)
+        imported_agents.append({
+            "id": agent_id,
+            "name": name,
+            "role": role.value,
+            "status": agent_status.value
+        })
+    
+    try:
+        db.commit()
+        
+        # Log activity for each imported agent
+        for agent_info in imported_agents:
+            await log_activity(
+                db,
+                "agent_imported",
+                agent_id=agent_info["id"],
+                description=f"Imported agent {agent_info['name']} from OpenClaw config"
+            )
+        
+        # Broadcast agent updates
+        await manager.broadcast({
+            "type": "agents_imported",
+            "data": {
+                "imported": imported_agents,
+                "skipped": skipped_agents
+            }
+        })
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to save agents: {str(e)}")
+    
+    return {
+        "imported": imported_agents,
+        "skipped": skipped_agents,
+        "total_requested": len(import_request.agent_ids),
+        "imported_count": len(imported_agents),
+        "skipped_count": len(skipped_agents)
+    }
+
 # Task endpoints
 @app.get("/api/tasks")
 def get_tasks(status: Optional[str] = None, assignee_id: Optional[str] = None, db: Session = Depends(get_db)):
