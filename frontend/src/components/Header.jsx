@@ -2,6 +2,7 @@ import { Bell, Clock, TrendingUp, TrendingDown, CheckCircle2, BarChart3, X, Refr
 import { useEffect, useState, useRef } from 'react'
 import { useMissionStore } from '../store/useMissionStore'
 import { formatDistanceToNow } from 'date-fns'
+import { api } from '../api'
 import clawLogo from '../assets/clawcontroller-logo.jpg'
 
 const formatTime = (date) =>
@@ -117,6 +118,7 @@ function SystemStatusDropdown({ onClose }) {
   const useOpenClaw = useMissionStore((state) => state.useOpenClaw)
   const error = useMissionStore((state) => state.error)
   const dropdownRef = useRef(null)
+  const [gatewayStatus, setGatewayStatus] = useState(null)
   
   // Close on click outside
   useEffect(() => {
@@ -128,6 +130,20 @@ function SystemStatusDropdown({ onClose }) {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [onClose])
+  
+  // Fetch gateway status
+  useEffect(() => {
+    const fetchGatewayStatus = async () => {
+      try {
+        const status = await api.get('/api/monitoring/gateway/status')
+        setGatewayStatus(status)
+      } catch (error) {
+        console.error('Failed to fetch gateway status:', error)
+        setGatewayStatus(null)
+      }
+    }
+    fetchGatewayStatus()
+  }, [])
   
   const workingAgents = agents.filter(a => a.status === 'WORKING').length
   const standbyAgents = agents.filter(a => a.status === 'STANDBY').length
@@ -163,6 +179,15 @@ function SystemStatusDropdown({ onClose }) {
           <span className="status-row-label">API</span>
           <span className={`status-row-value ${error ? 'error' : 'healthy'}`}>
             {error ? 'Error' : 'Healthy'}
+          </span>
+        </div>
+        
+        <div className="status-row">
+          <span className="status-row-label">Gateway</span>
+          <span className={`status-row-value ${gatewayStatus?.health_status === 'healthy' ? 'healthy' : gatewayStatus?.health_status === 'crashed' ? 'error' : 'degraded'}`}>
+            {gatewayStatus?.health_status === 'healthy' ? '✅ Healthy' : 
+             gatewayStatus?.health_status === 'crashed' ? '🔴 Crashed' :
+             gatewayStatus?.health_status === 'unknown' ? '❓ Unknown' : '⚠️ Down'}
           </span>
         </div>
       </div>

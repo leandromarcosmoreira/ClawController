@@ -19,6 +19,7 @@ from models import (
     RecurringTask, RecurringTaskRun, TaskActivity
 )
 from stuck_task_monitor import run_stuck_task_check, get_monitor_status
+from gateway_watchdog import start_gateway_watchdog, stop_gateway_watchdog, get_watchdog_status, run_health_check, manual_restart
 
 app = FastAPI(title="ClawController API", version="2.0.0")
 
@@ -321,8 +322,9 @@ Post an activity with 'completed' or 'done' in the message - the system will aut
 async def startup():
     init_db()
     print("ClawController API started")
-    # Start background session monitor
+    # Start background monitors
     asyncio.create_task(openclaw_session_monitor())
+    asyncio.create_task(start_gateway_watchdog())
 
 async def openclaw_session_monitor():
     """Background task that monitors OpenClaw sessions to detect agent activity.
@@ -2135,9 +2137,9 @@ async def trigger_recurring_task(recurring_id: str, db: Session = Depends(get_db
 def get_models():
     """Return list of available models from OpenClaw API."""
     try:
-        # Call OpenClaw models list API directly
+        # Call OpenClaw models list API directly (--all to get full catalog)
         result = subprocess.run(
-            ["openclaw", "models", "list", "--json"],
+            ["openclaw", "models", "list", "--all", "--json"],
             capture_output=True,
             text=True,
             timeout=10,
@@ -2873,6 +2875,35 @@ async def get_stuck_task_monitor_status():
         return status
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get monitor status: {str(e)}")
+
+# ============ Gateway Watchdog ============
+
+@app.get("/api/monitoring/gateway/status")
+async def get_gateway_watchdog_status():
+    """Get gateway watchdog status and statistics."""
+    try:
+        status = get_watchdog_status()
+        return status
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get gateway watchdog status: {str(e)}")
+
+@app.post("/api/monitoring/gateway/health-check")
+async def run_gateway_health_check():
+    """Run a one-time gateway health check."""
+    try:
+        result = await run_health_check()
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")
+
+@app.post("/api/monitoring/gateway/restart")
+async def restart_gateway():
+    """Manually restart the OpenClaw gateway."""
+    try:
+        result = await manual_restart()
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Manual restart failed: {str(e)}")
 
 # Background task for periodic stuck task checking
 @app.on_event("startup")
