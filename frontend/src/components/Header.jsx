@@ -254,17 +254,20 @@ export default function Header() {
   const stats = getStats()
 
   // Determine overall system status
-  // STANDBY is fine (agents ready to activate), only truly OFFLINE is degraded
+  // More forgiving - don't show error just because WS is reconnecting
   const getSystemStatus = () => {
-    if (error || !wsConnected) return 'error'
-    if (offlineAgents > 0) return 'degraded'  // Only truly offline agents degrade status
+    // Only show error for actual API errors, not WS disconnection
+    if (error) return 'error'
+    // WS not connected is degraded, not error (it reconnects automatically)
+    if (!wsConnected) return 'degraded'
+    if (offlineAgents > 0) return 'degraded'
     return 'healthy'
   }
   
   const systemStatus = getSystemStatus()
   const statusLabels = {
     healthy: 'Healthy',
-    degraded: 'Degraded',
+    degraded: 'Connecting...',
     error: 'Error'
   }
 
