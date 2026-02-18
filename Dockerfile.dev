@@ -1,0 +1,30 @@
+FROM node:22-alpine
+
+# Install Python and dependencies for backend
+RUN apk add --no-cache python3 py3-pip gcc musl-dev
+
+# Set working directory
+WORKDIR /app
+
+# Install pnpm globally
+RUN npm install -g pnpm
+
+# Copy package.json files
+COPY package.json ./
+COPY backend/requirements.txt ./backend/
+
+# Install backend dependencies
+RUN pip3 install -r backend/requirements.txt
+
+# Install frontend dependencies
+RUN pnpm install
+
+# Copy source code
+COPY backend/ ./backend/
+COPY frontend/ ./frontend/
+
+# Expose ports for backend and frontend
+EXPOSE 8000 5173
+
+# Development command with nodemon for both backend and frontend
+CMD ["sh", "-c", "cd backend && python3 -m pip install nodemon && nodemon main.py & cd frontend && pnpm dev"]

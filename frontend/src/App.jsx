@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import './App.css'
 import clawLogo from './assets/clawcontroller-logo.jpg'
 import AgentManagement from './components/AgentManagement'
@@ -14,29 +15,33 @@ import TaskModal from './components/TaskModal'
 import { useMissionStore } from './store/useMissionStore'
 
 function LoadingScreen() {
+  const { t } = useTranslation()
+  
   return (
     <div className="loading-screen">
       <div className="loading-content">
         <img src={clawLogo} alt="ClawController" className="loading-logo" />
-        <h2>ClawController</h2>
-        <p>Initializing systems...</p>
+        <h2>{t('app.title')}</h2>
+        <p>{t('app.loading')}</p>
       </div>
     </div>
   )
 }
 
 function ErrorScreen({ error, onRetry }) {
+  const { t } = useTranslation()
+  
   return (
     <div className="error-screen">
       <div className="error-content">
         <div className="error-icon">⚠️</div>
-        <h2>Connection Failed</h2>
+        <h2>{t('app.error.title')}</h2>
         <p>{error}</p>
         <button className="retry-button" onClick={onRetry}>
-          Retry Connection
+          {t('app.error.retry')}
         </button>
         <p className="error-hint">
-          Make sure the backend is running at http://localhost:8000
+          {t('app.error.hint')}
         </p>
       </div>
     </div>

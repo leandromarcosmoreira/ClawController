@@ -22,7 +22,7 @@ if [ ! -d "$BACKEND_DIR/venv" ]; then
     exit 1
 fi
 
-if [ ! -d "$FRONTEND_DIR/node_modules" ]; then
+if [ ! -d "$FRONTEND_DIR/node_modules" ] && [ ! -d "$FRONTEND_DIR/.pnpm" ]; then
     echo "❌ Frontend not set up. Run: clawcontroller setup"
     exit 1
 fi
@@ -43,7 +43,7 @@ echo "  Backend PID: $BACKEND_PID"
 # Start frontend
 echo "Starting frontend..."
 cd "$FRONTEND_DIR"
-nohup npm run dev -- --port 5001 --host 0.0.0.0 > "$LOGS_DIR/frontend.log" 2>&1 &
+nohup pnpm dev -- --port 5001 --host 0.0.0.0 > "$LOGS_DIR/frontend.log" 2>&1 &
 FRONTEND_PID=$!
 echo "  Frontend PID: $FRONTEND_PID"
 

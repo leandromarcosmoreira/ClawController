@@ -1,9 +1,11 @@
 import { Bell, Clock, TrendingUp, TrendingDown, CheckCircle2, BarChart3, X, RefreshCw, Activity, Wifi, WifiOff, AlertTriangle, Bot } from 'lucide-react'
 import { useEffect, useState, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useMissionStore } from '../store/useMissionStore'
 import { formatDistanceToNow } from 'date-fns'
 import { api } from '../api'
 import clawLogo from '../assets/clawcontroller-logo.jpg'
+import LanguageSelector from './LanguageSelector'
 
 const formatTime = (date) =>
   date.toLocaleTimeString('en-US', {
@@ -14,17 +16,17 @@ const formatTime = (date) =>
 // Simple sparkline component
 function Sparkline({ data, width = 80, height = 24 }) {
   if (!data || data.length === 0) return null
-  
+
   const max = Math.max(...data, 1)
   const min = 0
   const range = max - min || 1
-  
+
   const points = data.map((value, index) => {
     const x = (index / (data.length - 1)) * width
     const y = height - ((value - min) / range) * height
     return `${x},${y}`
   }).join(' ')
-  
+
   return (
     <svg width={width} height={height} className="sparkline">
       <polyline
@@ -46,24 +48,24 @@ function NotificationsDropdown() {
   const markAllNotificationsRead = useMissionStore((state) => state.markAllNotificationsRead)
   const openTaskFromNotification = useMissionStore((state) => state.openTaskFromNotification)
   const closeNotifications = useMissionStore((state) => state.closeNotifications)
-  
+
   const notifications = getMyNotifications()
-  
+
   const handleNotificationClick = (notif) => {
     openTaskFromNotification(notif.id, notif.taskId)
   }
-  
+
   return (
     <div className="notifications-dropdown">
       <div className="notifications-header">
-        <h4>Notifications</h4>
+        <h4>{t('header.notifications.title')}</h4>
         <div className="notifications-actions">
           {notifications.some(n => !n.read) && (
-            <button 
+            <button
               className="mark-all-read"
               onClick={markAllNotificationsRead}
             >
-              Mark all read
+              {t('header.notifications.mark_all_read')}
             </button>
           )}
           <button className="close-notifications" onClick={closeNotifications}>
@@ -75,7 +77,7 @@ function NotificationsDropdown() {
         {notifications.length === 0 ? (
           <div className="notifications-empty">
             <Bell size={24} />
-            <span>No notifications</span>
+            <span>{t('header.notifications.no_notifications')}</span>
           </div>
         ) : (
           notifications.map((notif) => {
@@ -86,7 +88,7 @@ function NotificationsDropdown() {
                 className={`notification-item ${notif.read ? 'read' : 'unread'}`}
                 onClick={() => handleNotificationClick(notif)}
               >
-                <div 
+                <div
                   className="notification-avatar"
                   style={{ backgroundColor: fromAgent?.color }}
                 >
@@ -119,7 +121,7 @@ function SystemStatusDropdown({ onClose }) {
   const error = useMissionStore((state) => state.error)
   const dropdownRef = useRef(null)
   const [gatewayStatus, setGatewayStatus] = useState(null)
-  
+
   // Close on click outside
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -130,7 +132,7 @@ function SystemStatusDropdown({ onClose }) {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [onClose])
-  
+
   // Fetch gateway status
   useEffect(() => {
     const fetchGatewayStatus = async () => {
@@ -144,11 +146,11 @@ function SystemStatusDropdown({ onClose }) {
     }
     fetchGatewayStatus()
   }, [])
-  
+
   const workingAgents = agents.filter(a => a.status === 'WORKING').length
   const standbyAgents = agents.filter(a => a.status === 'STANDBY').length
   const offlineAgents = agents.filter(a => a.status === 'OFFLINE').length
-  
+
   return (
     <div className="status-dropdown" ref={dropdownRef}>
       <div className="status-dropdown-header">
@@ -158,7 +160,7 @@ function SystemStatusDropdown({ onClose }) {
           <X size={14} />
         </button>
       </div>
-      
+
       <div className="status-section">
         <div className="status-row">
           <span className="status-row-label">WebSocket</span>
@@ -167,31 +169,31 @@ function SystemStatusDropdown({ onClose }) {
             {wsConnected ? 'Connected' : 'Disconnected'}
           </span>
         </div>
-        
+
         <div className="status-row">
           <span className="status-row-label">OpenClaw</span>
           <span className={`status-row-value ${useOpenClaw ? 'healthy' : 'degraded'}`}>
             {useOpenClaw ? '🦞 Integrated' : 'Standalone'}
           </span>
         </div>
-        
+
         <div className="status-row">
           <span className="status-row-label">API</span>
           <span className={`status-row-value ${error ? 'error' : 'healthy'}`}>
             {error ? 'Error' : 'Healthy'}
           </span>
         </div>
-        
+
         <div className="status-row">
           <span className="status-row-label">Gateway</span>
           <span className={`status-row-value ${gatewayStatus?.health_status === 'healthy' ? 'healthy' : gatewayStatus?.health_status === 'crashed' ? 'error' : 'degraded'}`}>
-            {gatewayStatus?.health_status === 'healthy' ? '✅ Healthy' : 
-             gatewayStatus?.health_status === 'crashed' ? '🔴 Crashed' :
-             gatewayStatus?.health_status === 'unknown' ? '❓ Unknown' : '⚠️ Down'}
+            {gatewayStatus?.health_status === 'healthy' ? '✅ Healthy' :
+              gatewayStatus?.health_status === 'crashed' ? '🔴 Crashed' :
+                gatewayStatus?.health_status === 'unknown' ? '❓ Unknown' : '⚠️ Down'}
           </span>
         </div>
       </div>
-      
+
       <div className="status-section">
         <div className="status-section-title">Agents</div>
         <div className="status-agents-grid status-agents-grid--3">
@@ -209,14 +211,14 @@ function SystemStatusDropdown({ onClose }) {
           </div>
         </div>
       </div>
-      
+
       {error && (
         <div className="status-error">
           <AlertTriangle size={14} />
           <span>{error}</span>
         </div>
       )}
-      
+
       <a href="/status" className="status-full-link">
         View Full Status Page →
       </a>
@@ -225,6 +227,7 @@ function SystemStatusDropdown({ onClose }) {
 }
 
 export default function Header() {
+  const { t } = useTranslation()
   const agents = useMissionStore((state) => state.agents)
   const tasks = useMissionStore((state) => state.tasks)
   const recurringTasks = useMissionStore((state) => state.recurringTasks)
@@ -236,7 +239,7 @@ export default function Header() {
   const getStats = useMissionStore((state) => state.getStats)
   const wsConnected = useMissionStore((state) => state.wsConnected)
   const error = useMissionStore((state) => state.error)
-  
+
   const [now, setNow] = useState(() => formatTime(new Date()))
   const [showStats, setShowStats] = useState(false)
   const [showStatus, setShowStatus] = useState(false)
@@ -263,12 +266,12 @@ export default function Header() {
     if (offlineAgents > 0) return 'degraded'
     return 'healthy'
   }
-  
+
   const systemStatus = getSystemStatus()
   const statusLabels = {
-    healthy: 'Healthy',
-    degraded: 'Connecting...',
-    error: 'Error'
+    healthy: t('header.status_labels.healthy'),
+    degraded: t('header.status_labels.connecting'),
+    error: t('header.status_labels.error')
   }
 
   return (
@@ -292,10 +295,10 @@ export default function Header() {
           <span className="stat-value">{taskQueue}</span>
           <span className="stat-label">TASKS IN QUEUE</span>
         </div>
-        
+
         {/* Stats Toggle */}
         <div className="stats-container">
-          <button 
+          <button
             className={`stat-pill stat-pill--interactive ${showStats ? 'active' : ''}`}
             onClick={() => setShowStats(!showStats)}
           >
@@ -309,7 +312,7 @@ export default function Header() {
               </span>
             )}
           </button>
-          
+
           {showStats && (
             <div className="stats-dropdown">
               <div className="stats-dropdown-header">
@@ -334,10 +337,10 @@ export default function Header() {
                 <span className="stats-trend-label">7-Day Trend</span>
                 <Sparkline data={stats.weekData} />
                 <span className={`stats-trend-value ${stats.trend > 0 ? 'positive' : stats.trend < 0 ? 'negative' : ''}`}>
-                  {stats.trend > 0 ? '↑' : stats.trend < 0 ? '↓' : '→'} 
-                  {stats.trend > 0 ? `${stats.trend} more than yesterday` : 
-                   stats.trend < 0 ? `${Math.abs(stats.trend)} less than yesterday` : 
-                   'Same as yesterday'}
+                  {stats.trend > 0 ? '↑' : stats.trend < 0 ? '↓' : '→'}
+                  {stats.trend > 0 ? `${stats.trend} more than yesterday` :
+                    stats.trend < 0 ? `${Math.abs(stats.trend)} less than yesterday` :
+                      'Same as yesterday'}
                 </span>
               </div>
             </div>
@@ -347,16 +350,16 @@ export default function Header() {
 
       <div className="header-actions">
         {/* Agent Management Button */}
-        <button 
+        <button
           className="agent-mgmt-button pulse-glow"
           onClick={openAgentManagement}
           title="Manage Agents"
         >
           <Bot size={18} />
         </button>
-        
+
         {/* Recurring Tasks Button */}
-        <button 
+        <button
           className={`recurring-button ${activeRecurring > 0 ? 'has-active' : ''}`}
           onClick={toggleRecurringPanel}
           title="Recurring Tasks"
@@ -366,10 +369,10 @@ export default function Header() {
             <span className="recurring-badge">{activeRecurring}</span>
           )}
         </button>
-        
+
         {/* Notifications Bell */}
         <div className="notifications-container">
-          <button 
+          <button
             className={`notification-bell ${unreadCount > 0 ? 'has-unread' : ''}`}
             onClick={toggleNotifications}
           >
@@ -380,15 +383,17 @@ export default function Header() {
           </button>
           {isNotificationsOpen && <NotificationsDropdown />}
         </div>
-        
+
+        <LanguageSelector />
+
         <div className="time-block">
           <Clock size={16} />
           <span>{now}</span>
         </div>
-        
+
         {/* Consolidated System Status */}
         <div className="system-status-container">
-          <button 
+          <button
             className={`system-status-pill system-status-pill--${systemStatus}`}
             onClick={() => setShowStatus(!showStatus)}
           >

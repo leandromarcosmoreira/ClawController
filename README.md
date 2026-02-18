@@ -102,7 +102,7 @@ pip install -r requirements.txt
 
 # Configuração do frontend
 cd ../frontend
-npm install
+pnpm install
 ```
 
 ### Executando
@@ -121,7 +121,7 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
 # Terminal 2 - Frontend
 cd frontend
-npm run dev -- --port 5001 --host 0.0.0.0
+pnpm dev -- --port 5001 --host 0.0.0.0
 ```
 
 **Acesse o painel:** http://localhost:5001

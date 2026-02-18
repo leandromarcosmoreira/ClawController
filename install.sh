@@ -39,7 +39,7 @@ echo -e "${YELLOW}Checking dependencies...${NC}"
 check_command git
 check_command python3
 check_command node
-check_command npm
+check_command pnpm
 
 # Check Python version
 PYTHON_VERSION=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
@@ -93,7 +93,7 @@ echo -e "${GREEN}✓ Backend ready${NC}"
 # Setup frontend
 echo -e "${YELLOW}Setting up frontend...${NC}"
 cd "$INSTALL_DIR/frontend"
-npm install --silent
+pnpm install --silent
 
 echo -e "${GREEN}✓ Frontend ready${NC}"
 echo ""

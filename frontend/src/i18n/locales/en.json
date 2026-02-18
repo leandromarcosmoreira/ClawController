@@ -1,0 +1,110 @@
+{
+  "app": {
+    "title": "ClawController",
+    "loading": "Initializing systems...",
+    "error": {
+      "title": "Connection Failed",
+      "retry": "Retry Connection",
+      "hint": "Make sure the backend is running at http://localhost:8000"
+    }
+  },
+  "header": {
+    "title": "ClawController",
+    "status": "Status",
+    "agents": "Agents",
+    "tasks": "Tasks",
+    "settings": "Settings",
+    "status_labels": {
+      "healthy": "Healthy",
+      "connecting": "Connecting...",
+      "error": "Error"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "mark_all_read": "Mark all read",
+      "no_notifications": "No notifications"
+    }
+  },
+  "agents": {
+    "title": "Agents",
+    "add": "Add Agent",
+    "edit": "Edit Agent",
+    "delete": "Delete Agent",
+    "status": {
+      "online": "Online",
+      "offline": "Offline",
+      "busy": "Busy",
+      "idle": "Idle"
+    },
+    "form": {
+      "name": "Name",
+      "type": "Type",
+      "description": "Description",
+      "config": "Configuration",
+      "save": "Save",
+      "cancel": "Cancel"
+    }
+  },
+  "tasks": {
+    "title": "Tasks",
+    "add": "New Task",
+    "edit": "Edit Task",
+    "delete": "Delete Task",
+    "status": {
+      "pending": "Pending",
+      "in_progress": "In Progress",
+      "completed": "Completed",
+      "failed": "Failed"
+    },
+    "form": {
+      "title": "Title",
+      "description": "Description",
+      "assigned_to": "Assigned To",
+      "priority": "Priority",
+      "due_date": "Due Date",
+      "save": "Save",
+      "cancel": "Cancel"
+    },
+    "priority": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "urgent": "Urgent"
+    }
+  },
+  "kanban": {
+    "columns": {
+      "todo": "To Do",
+      "in_progress": "In Progress",
+      "review": "Review",
+      "done": "Done"
+    }
+  },
+  "livefeed": {
+    "title": "Live Feed",
+    "no_activity": "No recent activity"
+  },
+  "chat": {
+    "title": "Chat",
+    "placeholder": "Type your message...",
+    "send": "Send"
+  },
+  "modals": {
+    "close": "Close",
+    "confirm": "Confirm",
+    "cancel": "Cancel"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "yes": "Yes",
+    "no": "No"
+  }
+}

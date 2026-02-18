@@ -1,0 +1,110 @@
+{
+  "app": {
+    "title": "ClawController",
+    "loading": "Inicializando sistemas...",
+    "error": {
+      "title": "Conexión Fallida",
+      "retry": "Reintentar Conexión",
+      "hint": "Asegúrese de que el backend esté ejecutándose en http://localhost:8000"
+    }
+  },
+  "header": {
+    "title": "ClawController",
+    "status": "Estado",
+    "agents": "Agentes",
+    "tasks": "Tareas",
+    "settings": "Configuración",
+    "status_labels": {
+      "healthy": "Saludable",
+      "connecting": "Conectando...",
+      "error": "Error"
+    },
+    "notifications": {
+      "title": "Notificaciones",
+      "mark_all_read": "Marcar todas como leídas",
+      "no_notifications": "Sin notificaciones"
+    }
+  },
+  "agents": {
+    "title": "Agentes",
+    "add": "Agregar Agente",
+    "edit": "Editar Agente",
+    "delete": "Eliminar Agente",
+    "status": {
+      "online": "En línea",
+      "offline": "Desconectado",
+      "busy": "Ocupado",
+      "idle": "Inactivo"
+    },
+    "form": {
+      "name": "Nombre",
+      "type": "Tipo",
+      "description": "Descripción",
+      "config": "Configuración",
+      "save": "Guardar",
+      "cancel": "Cancelar"
+    }
+  },
+  "tasks": {
+    "title": "Tareas",
+    "add": "Nueva Tarea",
+    "edit": "Editar Tarea",
+    "delete": "Eliminar Tarea",
+    "status": {
+      "pending": "Pendiente",
+      "in_progress": "En Progreso",
+      "completed": "Completada",
+      "failed": "Fallida"
+    },
+    "form": {
+      "title": "Título",
+      "description": "Descripción",
+      "assigned_to": "Asignado A",
+      "priority": "Prioridad",
+      "due_date": "Fecha de Vencimiento",
+      "save": "Guardar",
+      "cancel": "Cancelar"
+    },
+    "priority": {
+      "low": "Baja",
+      "medium": "Media",
+      "high": "Alta",
+      "urgent": "Urgente"
+    }
+  },
+  "kanban": {
+    "columns": {
+      "todo": "Por Hacer",
+      "in_progress": "En Progreso",
+      "review": "Revisión",
+      "done": "Hecho"
+    }
+  },
+  "livefeed": {
+    "title": "Feed en Vivo",
+    "no_activity": "Sin actividad reciente"
+  },
+  "chat": {
+    "title": "Chat",
+    "placeholder": "Escribe tu mensaje...",
+    "send": "Enviar"
+  },
+  "modals": {
+    "close": "Cerrar",
+    "confirm": "Confirmar",
+    "cancel": "Cancelar"
+  },
+  "common": {
+    "loading": "Cargando...",
+    "error": "Error",
+    "success": "Éxito",
+    "save": "Guardar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "add": "Agregar",
+    "cancel": "Cancelar",
+    "confirm": "Confirmar",
+    "yes": "Sí",
+    "no": "No"
+  }
+}
