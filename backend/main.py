@@ -23,6 +23,13 @@ from gateway_watchdog import start_gateway_watchdog, stop_gateway_watchdog, get_
 
 app = FastAPI(title="ClawController API", version="2.0.0")
 
+# Redirect root to docs
+from fastapi.responses import RedirectResponse
+
+@app.get("/")
+async def root():
+    return RedirectResponse(url="/docs")
+
 # CORS for frontend (allow all origins for remote access)
 app.add_middleware(
     CORSMiddleware,
@@ -334,6 +341,27 @@ async def openclaw_session_monitor():
     """
     print("OpenClaw session monitor started")
     
+    # Check if openclaw CLI is available
+    openclaw_available = False
+    try:
+        result = subprocess.run(
+            ["openclaw", "--version"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        openclaw_available = result.returncode == 0
+        if openclaw_available:
+            print(f"OpenClaw CLI available: {result.stdout.strip()}")
+    except FileNotFoundError:
+        print("Session monitor: openclaw CLI not found - skipping session monitoring")
+    except Exception as e:
+        print(f"Session monitor: error checking openclaw: {e}")
+    
+    if not openclaw_available:
+        # Exit gracefully - session monitoring requires openclaw CLI
+        return
+    
     while True:
         try:
             await asyncio.sleep(10)  # Check every 10 seconds
@@ -483,7 +511,7 @@ class OpenClawAgentResponse(BaseModel):
     status: str
     emoji: Optional[str] = None
     workspace: Optional[str] = None
-    model: Optional[dict] = None
+    model: Optional[str] = None
 
 @app.get("/api/openclaw/agents", response_model=List[OpenClawAgentResponse])
 def get_openclaw_agents(db: Session = Depends(get_db)):
