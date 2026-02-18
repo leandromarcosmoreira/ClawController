@@ -13,18 +13,18 @@ RUN npm install -g pnpm
 COPY package.json ./
 COPY backend/requirements.txt ./backend/
 
-# Install backend dependencies
-RUN pip3 install -r backend/requirements.txt
-
-# Install frontend dependencies
-RUN pnpm install
-
-# Copy source code
+# Copy source code first
 COPY backend/ ./backend/
-COPY frontend/ ./frontend/
 
-# Expose ports for backend and frontend
-EXPOSE 8000 5173
+# Install backend dependencies as root
+RUN python3 -m venv /app/venv
+RUN . /app/venv/bin/activate && pip3 install -r backend/requirements.txt
 
-# Development command with nodemon for both backend and frontend
-CMD ["sh", "-c", "cd backend && python3 -m pip install nodemon && nodemon main.py & cd frontend && pnpm dev"]
+# Fix permissions for all directories and ensure activate is executable
+RUN chmod -R 755 /app && chmod +x /app/venv/bin/activate
+
+# Expose ports for backend only
+EXPOSE 8000
+
+# Development command with backend only (running as root)
+CMD ["sh", "-c", ". /app/venv/bin/activate && cd backend && python main.py"]
