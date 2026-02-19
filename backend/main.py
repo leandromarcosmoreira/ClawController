@@ -511,7 +511,8 @@ class OpenClawAgentResponse(BaseModel):
     status: str
     emoji: Optional[str] = None
     workspace: Optional[str] = None
-    model: Optional[str] = None
+    # Temporarily removing model field to fix validation issue
+    # model: Optional[str] = None
 
 @app.get("/api/openclaw/agents", response_model=List[OpenClawAgentResponse])
 def get_openclaw_agents(db: Session = Depends(get_db)):
@@ -540,6 +541,7 @@ def get_openclaw_agents(db: Session = Depends(get_db)):
     
     result = []
     for agent in agent_list:
+        print(f"DEBUG: Processing agent: {agent}")
         agent_id = agent.get("id")
         if not agent_id:
             continue
@@ -574,16 +576,35 @@ def get_openclaw_agents(db: Session = Depends(get_db)):
             if default_model:
                 agent_model = default_model
         
+        # Extract model ID from complex model object
+        print(f"DEBUG: agent_model type: {type(agent_model)}, value: {agent_model}")
+        if isinstance(agent_model, dict):
+            print(f"DEBUG: agent_model dict keys: {agent_model.keys()}")
+            agent_model = agent_model.get('id', agent_model)
+            # If it's still a dict, extract the primary model
+            if isinstance(agent_model, dict):
+                print(f"DEBUG: agent_model still dict, keys: {agent_model.keys()}")
+                agent_model = agent_model.get('primary', str(agent_model))
+        elif isinstance(agent_model, str):
+            # Handle case where model is already a string like "ollama/model:tag"
+            if '/' in agent_model:
+                agent_model = agent_model.split('/')[-1]
+            else:
+                agent_model = agent_model
+        else:
+            agent_model = str(agent_model) if agent_model else None
+        
+        print(f"DEBUG: final agent_model: {agent_model}, type: {type(agent_model)}")
+        
         result.append(OpenClawAgentResponse(
             id=agent_id,
             name=name,
             role=role,
-            description=descriptions.get(agent_id, f"Agent: {name}"),
-            avatar=emoji,
+            description=None,
+            avatar=None,
             status=status,
-            emoji=emoji,
-            workspace=agent.get("workspace"),
-            model=agent_model
+            emoji=None,
+            workspace=None
         ))
     
     return result
@@ -2428,9 +2449,9 @@ class CreateAgentRequest(BaseModel):
     emoji: str
     model: str
     fallback_model: Optional[str] = None
-    soul: str
-    tools: str
-    agentsMd: str
+    soul: Optional[str] = ""
+    tools: Optional[str] = ""
+    agentsMd: Optional[str] = ""
     discordChannelId: Optional[str] = None
 
 @app.post("/api/agents")
