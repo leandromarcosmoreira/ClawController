@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useMissionStore } from '../store/useMissionStore'
 
 const STEPS = {
@@ -10,65 +11,66 @@ const STEPS = {
 // Pre-configured orchestrator template
 const ORCHESTRATOR_CONFIG = {
   id: 'main',
-  name: 'Orchestrator',
+  name: 'Orquestrador',
   emoji: '🎯',
   model: '',
-  soul: `# Orchestrator Agent
+  soul: `# Agente Orquestrador
 
-You are the primary orchestrator and squad lead. Your role is to:
+Você é o orquestrador principal e líder da equipe. Seu papel é:
 
-1. **Receive tasks** from the human and break them down into actionable work
-2. **Delegate** to specialist agents based on their capabilities
-3. **Monitor progress** and ensure tasks are completed properly
-4. **Report back** with summaries and results
+1. **Receber tarefas** do humano e dividi-las em trabalho acionável
+2. **Delegar** a agentes especialistas com base em suas capacidades
+3. **Monitorar progresso** e garantir que as tarefas sejam concluídas adequadamente
+4. **Reportar** com resumos e resultados
 
-## Working Style
+## Estilo de Trabalho
 
-- Be proactive about clarifying requirements before delegating
-- Check in on delegated tasks and follow up if needed
-- Synthesize results from multiple agents into coherent responses
-- Escalate blockers or decisions that need human input
+- Ser proativo esclarecendo requisitos antes de delegar
+- Verificar tarefas delegadas e acompanhar se necessário
+- Sintetizar resultados de múltiplos agentes em respostas coerentes
+- Escalar bloqueios ou decisões que precisam de entrada humana
 
-## Communication
+## Comunicação
 
-- Keep the human informed of significant progress
-- Be concise but thorough in status updates
-- Flag risks or concerns early
+- Manter o humano informado do progresso significativo
+- Ser conciso mas completo nas atualizações de status
+- Sinalizar riscos ou preocupações cedo
 
-You are the central coordinator. Other agents report to you.`,
-  tools: `# Tools & Integrations
+Você é o coordenador central. Outros agentes reportam a você.`,
+  tools: `# Ferramentas e Integrações
 
-## Available Tools
+## Ferramentas Disponíveis
 
-Document any tool configurations, API keys, or integrations here.
+Documente quaisquer configurações de ferramentas, chaves de API ou integrações aqui.
 
-## Agent Team
+## Equipe de Agentes
 
-List your specialist agents and their capabilities:
+Liste seus agentes especialistas e suas capacidades:
 
-- **Agent Name**: Description of what they do
+- **Nome do Agente**: Descrição do que faz
 
-## Preferences
+## Preferências
 
-- Preferred communication style
-- Working hours
-- Any special instructions`,
-  agentsMd: `# Workspace
+- Estilo de comunicação preferido
+- Horário de trabalho
+- Quaisquer instruções especiais`,
+  agentsMd: `# Espaço de Trabalho
 
-This is the main orchestrator workspace.
+Este é o espaço de trabalho principal do orquestrador.
 
-## Memory
+## Memória
 
-Use \`memory/YYYY-MM-DD.md\` files to track daily work and decisions.
+Use arquivos \`memory/YYYY-MM-DD.md\` para rastrear trabalho diário e decisões.
 
-## Guidelines
+## Diretrizes
 
-- Delegate complex tasks to specialists
-- Keep the human informed of progress
-- Document important decisions`,
+- Delegue tarefas complexas a especialistas
+- Mantenha o humano informado do progresso
+- Documente decisões importantes`,
 }
 
 export default function AddAgentWizard({ mode }) {
+  const { t } = useTranslation()
   const availableModels = useMissionStore((s) => s.availableModels)
   const loadingAgentManagement = useMissionStore((s) => s.loadingAgentManagement)
   const closeAddAgentWizard = useMissionStore((s) => s.closeAddAgentWizard)
@@ -77,11 +79,11 @@ export default function AddAgentWizard({ mode }) {
 
   // Determine initial step based on mode
   const initialStep = mode === 'orchestrator' ? STEPS.REVIEW : STEPS.DESCRIBE
-  
+
   const [step, setStep] = useState(initialStep)
   const [description, setDescription] = useState('')
   const [originalDescription, setOriginalDescription] = useState('')
-  
+
   // Agent config fields
   const [agentId, setAgentId] = useState('')
   const [agentName, setAgentName] = useState('')
@@ -90,7 +92,7 @@ export default function AddAgentWizard({ mode }) {
   const [soulMd, setSoulMd] = useState('')
   const [toolsMd, setToolsMd] = useState('')
   const [agentsMd, setAgentsMd] = useState('')
-  
+
   const [error, setError] = useState('')
 
   // Initialize with orchestrator config if in orchestrator mode
@@ -108,14 +110,14 @@ export default function AddAgentWizard({ mode }) {
 
   const handleGenerate = async () => {
     if (!description.trim()) {
-      setError('Please describe what the agent should do')
+      setError('Por favor, descreva o que o agente deve fazer')
       return
     }
-    
+
     setError('')
     setOriginalDescription(description)
     setStep(STEPS.LOADING)
-    
+
     try {
       const config = await generateAgentConfig(description)
       setAgentId(config.id || '')
@@ -127,29 +129,29 @@ export default function AddAgentWizard({ mode }) {
       setAgentsMd(config.agentsMd || '')
       setStep(STEPS.REVIEW)
     } catch (err) {
-      setError('Failed to generate config. Please try again.')
+      setError(t('agent_management.generate_config_error'))
       setStep(STEPS.DESCRIBE)
     }
   }
 
   const handleRefine = () => {
-    setDescription(originalDescription + '\n\n[Refinement]: ')
+    setDescription(originalDescription + '\n\n[Refinamento]: ')
     setStep(STEPS.DESCRIBE)
   }
 
   const handleCreate = async () => {
     if (!agentId.trim()) {
-      setError('Agent ID is required')
+      setError('ID do Agente é obrigatório')
       return
     }
-    
+
     if (!/^[a-z0-9-]+$/.test(agentId)) {
-      setError('Agent ID can only contain lowercase letters, numbers, and hyphens')
+      setError('ID do Agente pode conter apenas letras minúsculas, números e hífens')
       return
     }
-    
+
     setError('')
-    
+
     try {
       await createAgent({
         id: agentId,
@@ -161,7 +163,7 @@ export default function AddAgentWizard({ mode }) {
         agentsMd: agentsMd,
       })
     } catch (err) {
-      setError(err.message || 'Failed to create agent')
+      setError(err.message || 'Falha ao criar agente')
     }
   }
 
@@ -170,10 +172,10 @@ export default function AddAgentWizard({ mode }) {
   }
 
   const isOrchestrator = mode === 'orchestrator'
-  const title = isOrchestrator ? '🎯 Initialize Orchestrator' : '✨ Create New Agent'
-  const stepLabel = step === STEPS.DESCRIBE ? 'Step 1 of 2' :
-                    step === STEPS.LOADING ? 'Generating...' :
-                    isOrchestrator ? 'Review & Create' : 'Step 2 of 2'
+  const title = isOrchestrator ? '🎯 Inicializar Orquestrador' : '✨ Criar Novo Agente'
+  const stepLabel = step === STEPS.DESCRIBE ? 'Passo 1 de 2' :
+    step === STEPS.LOADING ? 'Gerando...' :
+      isOrchestrator ? 'Revisar & Criar' : 'Passo 2 de 2'
 
   return (
     <div className="modal-overlay agent-wizard-overlay" onClick={closeAddAgentWizard}>
@@ -204,30 +206,30 @@ export default function AddAgentWizard({ mode }) {
           {step === STEPS.DESCRIBE && (
             <div className="wizard-step">
               <p className="wizard-instruction">
-                Describe what this agent should do. Be specific about its role, capabilities, and any special requirements.
+                {t('agent_management.describe_agent_instruction')}
               </p>
-              
+
               <div className="field">
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Example: A development agent that specializes in React and TypeScript. It should follow best practices, write tests, and document code thoroughly..."
+                  placeholder={t('agent_management.description_placeholder')}
                   rows={8}
                   className="wizard-textarea"
                   autoFocus
                 />
               </div>
-              
+
               <div className="wizard-examples">
-                <span>Examples:</span>
-                <button onClick={() => setDescription('A coding agent specialized in Python backend development with FastAPI and PostgreSQL')}>
-                  Backend Dev
+                <span>{t('agent_management.examples')}</span>
+                <button onClick={() => setDescription(t('agent_management.example_backend'))}>
+                  {t('agent_management.backend_dev')}
                 </button>
-                <button onClick={() => setDescription('A sales agent that handles lead qualification, outreach emails, and CRM management')}>
-                  Sales Agent
+                <button onClick={() => setDescription(t('agent_management.example_sales'))}>
+                  {t('agent_management.sales_agent')}
                 </button>
-                <button onClick={() => setDescription('A research agent that investigates topics deeply, synthesizes findings, and creates detailed reports')}>
-                  Researcher
+                <button onClick={() => setDescription(t('agent_management.example_researcher'))}>
+                  {t('agent_management.researcher')}
                 </button>
               </div>
             </div>
@@ -236,7 +238,7 @@ export default function AddAgentWizard({ mode }) {
           {step === STEPS.LOADING && (
             <div className="wizard-loading">
               <div className="loading-spinner large" />
-              <p>Generating agent configuration...</p>
+              <p>{t('agent_management.generating_config')}</p>
             </div>
           )}
 
@@ -244,62 +246,63 @@ export default function AddAgentWizard({ mode }) {
             <div className="wizard-step wizard-review">
               {isOrchestrator && (
                 <p className="wizard-instruction orchestrator-intro">
-                  This is your main orchestrator agent. It will coordinate tasks and manage your agent team. 
-                  Review the configuration below and customize as needed.
+                  {t('agent_management.orchestrator_intro')}
                 </p>
               )}
-              
+
               <div className="wizard-review-row">
                 <div className="field" style={{ flex: 1 }}>
-                  <label>Agent ID *</label>
+                  <label>{t('agent_management.agent_id')}</label>
                   <input
                     type="text"
                     value={agentId}
                     onChange={handleIdChange}
-                    placeholder="my-agent"
+                    placeholder={t('agent_management.agent_id_placeholder')}
                   />
-                  <span className="field-hint">Lowercase, hyphens allowed</span>
+                  <span className="field-hint">{t('agent_management.agent_id_hint')}</span>
                 </div>
                 <div className="field" style={{ width: '80px' }}>
-                  <label>Emoji</label>
+                  <label>{t('agent_management.emoji')}</label>
                   <input
                     type="text"
                     value={agentEmoji}
                     onChange={(e) => setAgentEmoji(e.target.value)}
-                    placeholder="🤖"
+                    placeholder={t('agent_management.emoji_placeholder')}
                   />
                 </div>
               </div>
 
               <div className="wizard-review-row">
                 <div className="field" style={{ flex: 1 }}>
-                  <label>Name</label>
+                  <label>{t('agent_management.name')}</label>
                   <input
                     type="text"
                     value={agentName}
                     onChange={(e) => setAgentName(e.target.value)}
-                    placeholder="Agent Name"
+                    placeholder={t('agent_management.name_placeholder')}
                   />
                 </div>
                 <div className="field" style={{ flex: 1 }}>
-                  <label>Model</label>
+                  <label>{t('agent_management.model')}</label>
                   <select
                     value={agentModel}
                     onChange={(e) => setAgentModel(e.target.value)}
                     className="wizard-select"
                   >
-                    <option value="">Select model...</option>
-                    {availableModels.map((model) => (
+                    <option value="">{t('agent_management.select_model')}</option>
+                    {availableModels && availableModels.length > 0 ? availableModels.map((model) => (
                       <option key={model.id} value={model.id}>
                         {model.id}
                       </option>
-                    ))}
+                    )) : (
+                      <option value="" disabled>{t('agent_management.no_models_available')}</option>
+                    )}
                   </select>
                 </div>
               </div>
 
               <div className="field">
-                <label>SOUL.md</label>
+                <label>{t('agent_management.soul_md')}</label>
                 <textarea
                   value={soulMd}
                   onChange={(e) => setSoulMd(e.target.value)}
@@ -309,7 +312,7 @@ export default function AddAgentWizard({ mode }) {
               </div>
 
               <div className="field">
-                <label>TOOLS.md</label>
+                <label>{t('agent_management.tools_md')}</label>
                 <textarea
                   value={toolsMd}
                   onChange={(e) => setToolsMd(e.target.value)}
@@ -325,17 +328,17 @@ export default function AddAgentWizard({ mode }) {
           {step === STEPS.DESCRIBE && (
             <>
               <button className="secondary-button" onClick={closeAddAgentWizard}>
-                Cancel
+                {t('agent_management.cancel')}
               </button>
-              <button 
-                className="primary-button" 
+              <button
+                className="primary-button"
                 onClick={handleGenerate}
                 disabled={!description.trim()}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.27 5.82 22 7 14.14l-5-4.87 6.91-1.01L12 2z" />
                 </svg>
-                Generate Config
+                {t('agent_management.generate_config')}
               </button>
             </>
           )}
@@ -344,19 +347,19 @@ export default function AddAgentWizard({ mode }) {
             <>
               {!isOrchestrator && (
                 <button className="secondary-button" onClick={handleRefine}>
-                  ← Refine
+                  {t('agent_management.refine')}
                 </button>
               )}
               <div style={{ flex: 1 }} />
               <button className="secondary-button" onClick={closeAddAgentWizard}>
-                Cancel
+                {t('agent_management.cancel')}
               </button>
-              <button 
-                className="primary-button" 
+              <button
+                className="primary-button"
                 onClick={handleCreate}
                 disabled={loadingAgentManagement || !agentId.trim()}
               >
-                {loadingAgentManagement ? 'Creating...' : '🚀 Create Agent'}
+                {loadingAgentManagement ? t('agent_management.creating') : t('agent_management.create_agent')}
               </button>
             </>
           )}

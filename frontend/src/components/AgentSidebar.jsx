@@ -1,4 +1,5 @@
 import { Users, Bot, Plus } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useMissionStore } from '../store/useMissionStore'
 
 const roleClasses = {
@@ -8,14 +9,15 @@ const roleClasses = {
 }
 
 const statusConfig = {
-  WORKING: { dot: 'status-dot--green', label: 'Working', pulse: true },
-  IDLE: { dot: 'status-dot--yellow', label: 'Idle', pulse: false },
-  STANDBY: { dot: 'status-dot--blue', label: 'Standby', pulse: false },
-  OFFLINE: { dot: 'status-dot--gray', label: 'Offline', pulse: false },
-  ERROR: { dot: 'status-dot--red', label: 'Error', pulse: true }
+  WORKING: { dot: 'status-dot--green', label: 'sidebar.status_working', pulse: true },
+  IDLE: { dot: 'status-dot--yellow', label: 'sidebar.status_idle', pulse: false },
+  STANDBY: { dot: 'status-dot--blue', label: 'sidebar.status_standby', pulse: false },
+  OFFLINE: { dot: 'status-dot--gray', label: 'sidebar.status_offline', pulse: false },
+  ERROR: { dot: 'status-dot--red', label: 'sidebar.status_error', pulse: true }
 }
 
 export default function AgentSidebar() {
+  const { t } = useTranslation()
   const agents = useMissionStore((state) => state.agents)
   const selectedAgentId = useMissionStore((state) => state.selectedAgentId)
   const toggleAgentFilter = useMissionStore((state) => state.toggleAgentFilter)
@@ -29,7 +31,7 @@ export default function AgentSidebar() {
         <div className="sidebar-header">
           <div className="sidebar-title">
             <Users size={16} />
-            AGENTS
+            {t('sidebar.title')}
           </div>
           <span className="count-badge">0</span>
         </div>
@@ -38,23 +40,23 @@ export default function AgentSidebar() {
           <div className="empty-state-icon">
             <Bot size={48} />
           </div>
-          <h3 className="empty-state-title">Welcome to ClawController!</h3>
+          <h3 className="empty-state-title">{t('sidebar.welcome_title')}</h3>
           <p className="empty-state-description">
-            Your agent command center is ready. Create your first agent to start orchestrating tasks and automating your workflow.
+            {t('sidebar.welcome_description')}
           </p>
-          <button 
+          <button
             className="empty-state-button"
             onClick={openAgentManagement}
           >
             <Plus size={16} />
-            Create Your First Agent
+            {t('sidebar.create_first_agent')}
           </button>
           <div className="empty-state-tips">
-            <h4>Quick Tips:</h4>
+            <h4>{t('sidebar.quick_tips')}</h4>
             <ul>
-              <li>Agents can be developers, analysts, or specialists</li>
-              <li>Use @mentions to assign tasks to specific agents</li>
-              <li>Agents work together on your projects</li>
+              <li>{t('sidebar.tip1')}</li>
+              <li>{t('sidebar.tip2')}</li>
+              <li>{t('sidebar.tip3')}</li>
             </ul>
           </div>
         </div>
@@ -67,16 +69,16 @@ export default function AgentSidebar() {
       <div className="sidebar-header">
         <div className="sidebar-title">
           <Users size={16} />
-          AGENTS
+          {t('sidebar.title')}
         </div>
         <span className="count-badge">{agents.length}</span>
       </div>
 
       <div className="sidebar-summary">
         <div>
-          <div className="summary-title">All Agents</div>
+          <div className="summary-title">{t('sidebar.all_agents')}</div>
           <div className="summary-subtitle">
-            {selectedAgentId ? 'Click agent again to clear filter' : 'Click an agent to filter tasks'}
+            {selectedAgentId ? t('sidebar.click_to_clear') : t('sidebar.click_to_filter')}
           </div>
         </div>
         <div className="summary-count">{activeAgents}</div>
@@ -91,7 +93,7 @@ export default function AgentSidebar() {
               type="button"
               className={`agent-card ${isSelected ? 'agent-card--selected' : ''}`}
               onClick={() => toggleAgentFilter(agent.id)}
-              style={isSelected ? { 
+              style={isSelected ? {
                 borderColor: agent.color,
                 boxShadow: `0 0 0 2px ${agent.color}25, 0 10px 20px rgba(224, 123, 60, 0.12)`
               } : undefined}
@@ -102,13 +104,13 @@ export default function AgentSidebar() {
               <div className="agent-info">
                 <div className="agent-top">
                   <span className="agent-name">{agent.name}</span>
-                  {agent.role === 'LEAD' && <span className={roleClasses[agent.role]}>Lead</span>}
+                  {agent.role === 'LEAD' && <span className={roleClasses[agent.role]}>{t('sidebar.role_lead')}</span>}
                 </div>
                 <div className="agent-desc">{agent.description}</div>
               </div>
-              <div className="agent-status" title={statusConfig[agent.status]?.label || agent.status}>
+              <div className="agent-status" title={t(statusConfig[agent.status]?.label || agent.status)}>
                 <span className={`status-dot ${statusConfig[agent.status]?.dot || 'status-dot--gray'} ${statusConfig[agent.status]?.pulse ? 'status-dot--pulse' : ''}`} />
-                <span className="status-label">{statusConfig[agent.status]?.label || agent.status}</span>
+                <span className="status-label">{t(statusConfig[agent.status]?.label || agent.status)}</span>
               </div>
             </button>
           )

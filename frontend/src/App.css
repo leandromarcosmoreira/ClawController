@@ -106,8 +106,15 @@
 }
 
 @keyframes pulse-soft {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.8; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.8;
+  }
 }
 
 .header-stats {
@@ -207,7 +214,11 @@
   padding: 20px;
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
-  height: fit-content;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 120px);
+  position: sticky;
+  top: 104px;
 }
 
 .sidebar-header {
@@ -265,6 +276,26 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  overflow-y: auto;
+  flex: 1;
+  padding-right: 4px;
+}
+
+.agent-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.agent-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.agent-list::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 10px;
+}
+
+.agent-list::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
 }
 
 .agent-card {
@@ -376,6 +407,7 @@
   display: grid;
   grid-template-columns: repeat(5, minmax(220px, 1fr));
   gap: 16px;
+  align-items: stretch;
 }
 
 .kanban-column {
@@ -386,7 +418,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  min-height: 520px;
+  flex: 1;
 }
 
 .kanban-column-header {
@@ -1055,10 +1087,14 @@
 }
 
 @keyframes typingBounce {
-  0%, 60%, 100% {
+
+  0%,
+  60%,
+  100% {
     transform: translateY(0);
     opacity: 0.4;
   }
+
   30% {
     transform: translateY(-6px);
     opacity: 1;
@@ -1436,8 +1472,15 @@
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
 }
 
 .status-label {
@@ -2078,12 +2121,12 @@
   .field-row {
     grid-template-columns: 1fr;
   }
-  
+
   .notifications-dropdown {
     width: calc(100vw - 32px);
     right: -100px;
   }
-  
+
   .stats-dropdown {
     width: calc(100vw - 32px);
     right: -50px;
@@ -2115,8 +2158,15 @@
 }
 
 @keyframes pulse-glow {
-  0%, 100% { filter: drop-shadow(0 0 20px var(--accent-glow)); }
-  50% { filter: drop-shadow(0 0 40px var(--accent-glow)); }
+
+  0%,
+  100% {
+    filter: drop-shadow(0 0 20px var(--accent-glow));
+  }
+
+  50% {
+    filter: drop-shadow(0 0 40px var(--accent-glow));
+  }
 }
 
 .loading-spinner {
@@ -2131,7 +2181,9 @@
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .loading-content h2 {
@@ -2261,13 +2313,29 @@
 }
 
 @keyframes pulse-green {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
 }
 
 @keyframes pulse-red {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.7; transform: scale(1.2); }
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.7;
+    transform: scale(1.2);
+  }
 }
 
 /* ===== BUTTON LOADING STATE ===== */
@@ -2410,6 +2478,7 @@
     opacity: 0;
     transform: scale(0.95);
   }
+
   to {
     opacity: 1;
     transform: scale(1);
@@ -2807,11 +2876,11 @@
   transition: 0.3s;
 }
 
-.toggle-checkbox:checked + .toggle-switch {
+.toggle-checkbox:checked+.toggle-switch {
   background: var(--accent);
 }
 
-.toggle-checkbox:checked + .toggle-switch::before {
+.toggle-checkbox:checked+.toggle-switch::before {
   transform: translateX(18px);
 }
 
@@ -3105,8 +3174,15 @@
 }
 
 @keyframes pulse-error {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
 }
 
 .system-status-dot {
@@ -3259,7 +3335,8 @@
 
 /* STANDBY status styling */
 .status-agent-count.standby {
-  color: #60A5FA;  /* blue */
+  color: #60A5FA;
+  /* blue */
 }
 
 .status-agent-count.idle {
@@ -3505,6 +3582,7 @@
     opacity: 0;
     transform: translate(-50%, -48%);
   }
+
   to {
     opacity: 1;
     transform: translate(-50%, -50%);
@@ -3512,8 +3590,13 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 /* Header */
@@ -3717,8 +3800,15 @@
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
 }
 
 .agent-mgmt-empty h3 {
@@ -3762,8 +3852,17 @@
 }
 
 @keyframes sparkle {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.8; transform: scale(1.1); }
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.8;
+    transform: scale(1.1);
+  }
 }
 
 .agent-mgmt-empty-divider {
@@ -4145,9 +4244,12 @@
 
 /* Pulsing orange glow animation for agent management button */
 @keyframes pulse-orange-glow {
-  0%, 100% {
+
+  0%,
+  100% {
     box-shadow: 0 0 5px rgba(249, 115, 22, 0.4), 0 0 10px rgba(249, 115, 22, 0.2);
   }
+
   50% {
     box-shadow: 0 0 15px rgba(249, 115, 22, 0.6), 0 0 25px rgba(249, 115, 22, 0.4), 0 0 35px rgba(249, 115, 22, 0.2);
   }
@@ -4223,6 +4325,7 @@
     opacity: 0;
     transform: translateX(-50%) translateY(4px);
   }
+
   to {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
@@ -4915,6 +5018,7 @@
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
@@ -5336,8 +5440,13 @@
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 /* ============ Agent Card Model Status ============ */
@@ -5368,8 +5477,15 @@
 }
 
 @keyframes warning-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
 }
 
 /* Status Full Link */
@@ -5390,4 +5506,3 @@
   background: var(--bg-tertiary);
   color: var(--accent-hover);
 }
-

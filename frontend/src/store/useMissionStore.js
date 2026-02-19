@@ -1015,12 +1015,12 @@ export const useMissionStore = create((set, get) => ({
   },
 }))
 
-export const statusOrder = ['INBOX', 'ASSIGNED', 'IN PROGRESS', 'REVIEW', 'DONE']
+export const statusOrder = ['INBOX', 'ASSIGNED', 'IN_PROGRESS', 'REVIEW', 'DONE']
 
 export const statusColors = {
   INBOX: 'var(--accent)',
   ASSIGNED: '#8B5CF6',
-  'IN PROGRESS': '#F97316',
+  IN_PROGRESS: '#F97316',
   REVIEW: '#0EA5E9',
   DONE: '#22C55E'
 }

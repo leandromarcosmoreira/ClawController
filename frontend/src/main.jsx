@@ -3,7 +3,6 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import './index.css'
 import './i18n'
-import './i18n/pt-config'  // Configurar português como padrão
 import App from './App.jsx'
 import StatusPage from './components/StatusPage.jsx'
 

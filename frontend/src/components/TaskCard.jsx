@@ -3,17 +3,18 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useMissionStore, priorityColors } from '../store/useMissionStore'
 import { format, isPast, isToday, isTomorrow } from 'date-fns'
+import { useTranslation } from 'react-i18next'
 
 // Format due date for display
-function formatDueDate(dueAt) {
+function formatDueDate(dueAt, t) {
   if (!dueAt) return null
   const date = new Date(dueAt)
-  
-  if (isToday(date)) return 'Due Today'
-  if (isTomorrow(date)) return 'Due Tomorrow'
-  if (isPast(date)) return `Overdue`
-  
-  return `Due ${format(date, 'MMM d')}`
+
+  if (isToday(date)) return t('tasks.due_today')
+  if (isTomorrow(date)) return t('tasks.due_tomorrow')
+  if (isPast(date)) return t('tasks.overdue')
+
+  return `Vence ${format(date, 'd MMM')}`
 }
 
 // Check if task is overdue
@@ -26,11 +27,12 @@ function isOverdue(dueAt, status) {
 function TaskCardContent({ task, isDragging = false, showHandle = true, onHandleProps = {} }) {
   const agents = useMissionStore((state) => state.agents)
   const selectTask = useMissionStore((state) => state.selectTask)
-  
+  const { t } = useTranslation()
+
   // Get agent - prefer embedded agent data, fallback to lookup
   const agent = task.assignee || agents.find((item) => item.id === task.assignedTo)
-  
-  const dueLabel = formatDueDate(task.dueAt)
+
+  const dueLabel = formatDueDate(task.dueAt, t)
   const overdue = isOverdue(task.dueAt, task.status)
 
   const handleClick = (e) => {
@@ -55,7 +57,7 @@ function TaskCardContent({ task, isDragging = false, showHandle = true, onHandle
           {task.priority === 'URGENT' && (
             <span className="priority priority--urgent">
               <AlarmClock size={12} />
-              URGENT
+              URGENTE
             </span>
           )}
         </div>
@@ -81,8 +83,8 @@ function TaskCardContent({ task, isDragging = false, showHandle = true, onHandle
             </div>
           )}
           {task.status === 'REVIEW' && task.reviewer && (
-            <div className="task-reviewer" title={`Awaiting review from ${task.reviewer}`}>
-              {task.reviewer === 'human' ? '👤' : '🤖'} Review: {task.reviewer}
+            <div className="task-reviewer" title={`${t('tasks.awaiting_review')} ${task.reviewer}`}>
+              {task.reviewer === 'human' ? '👤' : '🤖'} {t('tasks.review')}: {task.reviewer}
             </div>
           )}
           <div className="task-time">
@@ -125,8 +127,8 @@ function SortableTaskCard({ task }) {
 
   return (
     <div ref={setNodeRef} style={style}>
-      <TaskCardContent 
-        task={task} 
+      <TaskCardContent
+        task={task}
         isDragging={isDragging}
         showHandle={true}
         onHandleProps={{ ...attributes, ...listeners }}

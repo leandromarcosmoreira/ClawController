@@ -14,6 +14,8 @@ from sqlalchemy.orm import Session
 from database import SessionLocal
 from models import Task, TaskStatus, Agent, AgentStatus
 import logging
+import requests
+import os
 
 # Configuration
 STUCK_TASK_THRESHOLDS = {
@@ -201,11 +203,11 @@ class StuckTaskMonitor:
 View in ClawController: http://localhost:5001"""
         
         try:
-            subprocess.Popen(
-                ["openclaw", "agent", "--agent", "main", "--message", message],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                cwd=str(Path.home())
+            openclaw_url = os.getenv("OPENCLAW_URL", "http://openclaw-gateway:18789")
+            requests.post(
+                f"{openclaw_url}/api/chat",
+                json={"agent_id": "main", "message": message},
+                timeout=5
             )
             logging.info(f"Notified main agent about stuck task: {stuck_info['title']}")
             return True

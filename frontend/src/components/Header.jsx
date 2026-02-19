@@ -8,7 +8,7 @@ import clawLogo from '../assets/clawcontroller-logo.jpg'
 import LanguageSelector from './LanguageSelector'
 
 const formatTime = (date) =>
-  date.toLocaleTimeString('en-US', {
+  date.toLocaleTimeString('pt-BR', {
     hour: '2-digit',
     minute: '2-digit'
   })
@@ -155,7 +155,7 @@ function SystemStatusDropdown({ onClose }) {
     <div className="status-dropdown" ref={dropdownRef}>
       <div className="status-dropdown-header">
         <Activity size={16} />
-        <span>System Status</span>
+        <span>{t('header.system_status')}</span>
         <button className="close-status" onClick={onClose}>
           <X size={14} />
         </button>
@@ -163,51 +163,51 @@ function SystemStatusDropdown({ onClose }) {
 
       <div className="status-section">
         <div className="status-row">
-          <span className="status-row-label">WebSocket</span>
+          <span className="status-row-label">{t('header.websocket')}</span>
           <span className={`status-row-value ${wsConnected ? 'healthy' : 'error'}`}>
             {wsConnected ? <Wifi size={14} /> : <WifiOff size={14} />}
-            {wsConnected ? 'Connected' : 'Disconnected'}
+            {wsConnected ? t('header.connected') : t('header.disconnected')}
           </span>
         </div>
 
         <div className="status-row">
           <span className="status-row-label">OpenClaw</span>
           <span className={`status-row-value ${useOpenClaw ? 'healthy' : 'degraded'}`}>
-            {useOpenClaw ? '🦞 Integrated' : 'Standalone'}
+            {useOpenClaw ? t('header.openclaw_integrated') : t('header.standalone')}
           </span>
         </div>
 
         <div className="status-row">
-          <span className="status-row-label">API</span>
+          <span className="status-row-label">{t('header.api')}</span>
           <span className={`status-row-value ${error ? 'error' : 'healthy'}`}>
-            {error ? 'Error' : 'Healthy'}
+            {error ? t('header.status_labels.error') : t('header.status_labels.healthy')}
           </span>
         </div>
 
         <div className="status-row">
-          <span className="status-row-label">Gateway</span>
+          <span className="status-row-label">{t('header.gateway')}</span>
           <span className={`status-row-value ${gatewayStatus?.health_status === 'healthy' ? 'healthy' : gatewayStatus?.health_status === 'crashed' ? 'error' : 'degraded'}`}>
-            {gatewayStatus?.health_status === 'healthy' ? '✅ Healthy' :
-              gatewayStatus?.health_status === 'crashed' ? '🔴 Crashed' :
-                gatewayStatus?.health_status === 'unknown' ? '❓ Unknown' : '⚠️ Down'}
+            {gatewayStatus?.health_status === 'healthy' ? t('header.status_labels.healthy') :
+              gatewayStatus?.health_status === 'crashed' ? t('header.status_labels.crashed') :
+                gatewayStatus?.health_status === 'unknown' ? t('header.status_labels.unknown') : t('header.status_labels.down')}
           </span>
         </div>
       </div>
 
       <div className="status-section">
-        <div className="status-section-title">Agents</div>
+        <div className="status-section-title">{t('agents.title')}</div>
         <div className="status-agents-grid status-agents-grid--3">
           <div className="status-agent-stat">
             <span className="status-agent-count healthy">{workingAgents}</span>
-            <span className="status-agent-label">Working</span>
+            <span className="status-agent-label">{t('agent_management.status_working')}</span>
           </div>
           <div className="status-agent-stat">
             <span className="status-agent-count standby">{standbyAgents}</span>
-            <span className="status-agent-label">Standby</span>
+            <span className="status-agent-label">{t('agent_management.status_standby')}</span>
           </div>
           <div className="status-agent-stat">
             <span className="status-agent-count error">{offlineAgents}</span>
-            <span className="status-agent-label">Offline</span>
+            <span className="status-agent-label">{t('agent_management.status_offline')}</span>
           </div>
         </div>
       </div>
@@ -220,7 +220,7 @@ function SystemStatusDropdown({ onClose }) {
       )}
 
       <a href="/status" className="status-full-link">
-        View Full Status Page →
+        {t('header.view_full_status')} →
       </a>
     </div>
   )
@@ -281,19 +281,19 @@ export default function Header() {
           <img src={clawLogo} alt="ClawController" className="logo-image" />
         </div>
         <div>
-          <div className="logo-title header-title">CLAWCONTROLLER</div>
-          <div className="logo-subtitle">Multi-Agent Orchestration</div>
+          <div className="logo-title header-title">{t('header.title').toUpperCase()}</div>
+          <div className="logo-subtitle">{t('header.subtitle')}</div>
         </div>
       </div>
 
       <div className="header-stats">
         <div className="stat-pill">
           <span className="stat-value">{activeAgents}</span>
-          <span className="stat-label">AGENTS ACTIVE</span>
+          <span className="stat-label">{t('header.stats.agents_active')}</span>
         </div>
         <div className="stat-pill">
           <span className="stat-value">{taskQueue}</span>
-          <span className="stat-label">TASKS IN QUEUE</span>
+          <span className="stat-label">{t('header.stats.tasks_in_queue')}</span>
         </div>
 
         {/* Stats Toggle */}
@@ -304,7 +304,7 @@ export default function Header() {
           >
             <BarChart3 size={16} />
             <span className="stat-value">{stats.completedToday}</span>
-            <span className="stat-label">DONE TODAY</span>
+            <span className="stat-label">{t('header.stats.done_today')}</span>
             {stats.trend !== 0 && (
               <span className={`stat-trend ${stats.trend > 0 ? 'positive' : 'negative'}`}>
                 {stats.trend > 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
@@ -317,20 +317,24 @@ export default function Header() {
             <div className="stats-dropdown">
               <div className="stats-dropdown-header">
                 <CheckCircle2 size={16} />
-                <span>Completion Stats</span>
+                <span>{t('header.stats.completion_stats')}</span>
               </div>
               <div className="stats-grid">
                 <div className="stats-item">
                   <div className="stats-item-value">{stats.completedToday}</div>
-                  <div className="stats-item-label">Today</div>
+                  <div className="stats-item-label">{t('header.stats.today')}</div>
                 </div>
                 <div className="stats-item">
                   <div className="stats-item-value">{stats.completedYesterday}</div>
-                  <div className="stats-item-label">Yesterday</div>
+                  <div className="stats-item-label">{t('header.stats.yesterday')}</div>
                 </div>
                 <div className="stats-item">
                   <div className="stats-item-value">{stats.completedThisWeek}</div>
-                  <div className="stats-item-label">This Week</div>
+                  <div className="stats-item-label">{t('header.stats.this_week')}</div>
+                </div>
+                <div className="stats-item">
+                  <div className="stats-trend-value">{stats.weeklyTrend}%</div>
+                  <div className="stats-trend-label">{t('header.stats.7day_trend')}</div>
                 </div>
               </div>
               <div className="stats-trend-section">
@@ -353,7 +357,7 @@ export default function Header() {
         <button
           className="agent-mgmt-button pulse-glow"
           onClick={openAgentManagement}
-          title="Manage Agents"
+          title={t('agents.manage')}
         >
           <Bot size={18} />
         </button>
@@ -362,7 +366,7 @@ export default function Header() {
         <button
           className={`recurring-button ${activeRecurring > 0 ? 'has-active' : ''}`}
           onClick={toggleRecurringPanel}
-          title="Recurring Tasks"
+          title={t('recurring.title')}
         >
           <RefreshCw size={16} />
           {activeRecurring > 0 && (

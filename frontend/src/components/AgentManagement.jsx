@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Download, Sparkles } from 'lucide-react'
 import { useMissionStore } from '../store/useMissionStore'
 import AgentEditModal from './AgentEditModal'
@@ -7,10 +8,10 @@ import ImportAgentsDialog from './ImportAgentsDialog'
 
 // Status indicator colors
 const statusConfig = {
-  WORKING: { color: '#22C55E', label: 'Working', dotClass: 'status-dot--green status-dot--pulse' },
-  IDLE: { color: '#F59E0B', label: 'Idle', dotClass: 'status-dot--yellow' },
-  STANDBY: { color: '#9CA3AF', label: 'Standby', dotClass: 'status-dot--gray' },
-  OFFLINE: { color: '#EF4444', label: 'Offline', dotClass: 'status-dot--red' },
+  WORKING: { color: '#22C55E', label: 'agent_management.status_working', dotClass: 'status-dot--green status-dot--pulse' },
+  IDLE: { color: '#F59E0B', label: 'agent_management.status_idle', dotClass: 'status-dot--yellow' },
+  STANDBY: { color: '#9CA3AF', label: 'agent_management.status_standby', dotClass: 'status-dot--gray' },
+  OFFLINE: { color: '#EF4444', label: 'agent_management.status_offline', dotClass: 'status-dot--red' },
 }
 
 // Model badge display
@@ -24,13 +25,14 @@ const getModelBadge = (modelId) => {
 }
 
 function AgentCard({ agent, onClick }) {
+  const { t } = useTranslation()
   const status = statusConfig[agent.status] || statusConfig.OFFLINE
   const currentModel = agent.current_model || agent.model?.primary || agent.model
   const modelBadge = getModelBadge(currentModel)
-  const isUsingFallback = (agent.current_model && 
-                           agent.current_model === agent.fallback_model && 
-                           agent.current_model !== agent.primary_model)
-  
+  const isUsingFallback = (agent.current_model &&
+    agent.current_model === agent.fallback_model &&
+    agent.current_model !== agent.primary_model)
+
   return (
     <button className="agent-mgmt-card" onClick={() => onClick(agent.id)}>
       <div className="agent-mgmt-card-header">
@@ -40,7 +42,7 @@ function AgentCard({ agent, onClick }) {
         <div className="agent-mgmt-status">
           <span className={`status-dot ${status.dotClass}`} />
           {isUsingFallback && (
-            <span className="fallback-indicator" title="Using fallback model">⚠️</span>
+            <span className="fallback-indicator" title={t('agent_management.using_fallback_model')}>⚠️</span>
           )}
         </div>
       </div>
@@ -50,10 +52,10 @@ function AgentCard({ agent, onClick }) {
       </div>
       {modelBadge.alias !== '?' && (
         <div className="agent-mgmt-footer">
-          <span 
+          <span
             className={`agent-mgmt-model-badge ${isUsingFallback ? 'fallback' : ''}`}
             style={{ background: `${modelBadge.color}20`, color: modelBadge.color }}
-            title={isUsingFallback ? `Fallback: ${currentModel}` : `Primary: ${currentModel}`}
+            title={isUsingFallback ? t('agent_management.fallback_model', { model: currentModel }) : t('agent_management.primary_model', { model: currentModel })}
           >
             {isUsingFallback ? '⚠️ ' : ''}{modelBadge.alias}
           </span>
@@ -64,6 +66,7 @@ function AgentCard({ agent, onClick }) {
 }
 
 function AddAgentCard({ onClick }) {
+  const { t } = useTranslation()
   return (
     <button className="agent-mgmt-card agent-mgmt-card--add" onClick={onClick}>
       <div className="agent-mgmt-add-icon">
@@ -71,30 +74,31 @@ function AddAgentCard({ onClick }) {
           <path d="M12 5v14M5 12h14" />
         </svg>
       </div>
-      <span>Add Agent</span>
+      <span>{t('agent_management.add_agent')}</span>
     </button>
   )
 }
 
 function EmptyState({ onInitialize, onImport }) {
+  const { t } = useTranslation()
   return (
     <div className="agent-mgmt-empty">
       <div className="agent-mgmt-empty-icon">🦞</div>
-      <h3>Welcome to ClawController</h3>
-      <p>Get started by creating your orchestrator agent. This will be your main agent that coordinates tasks and manages your team.</p>
-      
+      <h3>{t('agent_management.welcome_title')}</h3>
+      <p>{t('agent_management.welcome_description')}</p>
+
       <button className="agent-mgmt-init-button" onClick={onInitialize}>
         <Sparkles size={20} />
-        Initialize Orchestrator Agent
+        {t('agent_management.initialize_orchestrator')}
       </button>
-      
+
       <div className="agent-mgmt-empty-divider">
-        <span>or</span>
+        <span>{t('common.or')}</span>
       </div>
-      
+
       <button className="agent-mgmt-import-button" onClick={onImport}>
         <Download size={16} />
-        Import from OpenClaw
+        {t('agent_management.import_from_openclaw')}
       </button>
     </div>
   )
@@ -112,36 +116,36 @@ export default function AgentManagement() {
   const openOrchestratorWizard = useMissionStore((s) => s.openOrchestratorWizard)
   const fetchModels = useMissionStore((s) => s.fetchModels)
   const openImportDialog = useMissionStore((s) => s.openImportDialog)
-  
+
   // Fetch models when panel opens
   useEffect(() => {
     if (isOpen) {
       fetchModels()
     }
   }, [isOpen, fetchModels])
-  
+
   if (!isOpen) return null
-  
+
   const handleCardClick = (agentId) => {
     setEditingAgent(agentId)
   }
-  
+
   const hasAgents = agents.length > 0
-  
+
   return (
     <>
       <div className="agent-mgmt-overlay" onClick={closeAgentManagement} />
       <div className="agent-mgmt-panel">
         <div className="agent-mgmt-header">
           <div className="agent-mgmt-header-left">
-            <h2>🤖 Agent Management</h2>
-            {hasAgents && <span className="agent-mgmt-count">{agents.length} agents</span>}
+            <h2>{t('agent_management.title')}</h2>
+            {hasAgents && <span className="agent-mgmt-count">{agents.length} {t('agent_management.agents')}</span>}
           </div>
           {hasAgents && (
             <div className="agent-mgmt-header-right">
               <button className="import-agents-button" onClick={openImportDialog}>
                 <Download size={16} />
-                Import from OpenClaw
+                {t('agent_management.import_from_openclaw')}
               </button>
             </div>
           )}
@@ -151,32 +155,32 @@ export default function AgentManagement() {
             </svg>
           </button>
         </div>
-        
+
         {hasAgents ? (
           <div className="agent-mgmt-grid">
             {agents.map((agent) => (
-              <AgentCard 
-                key={agent.id} 
-                agent={agent} 
+              <AgentCard
+                key={agent.id}
+                agent={agent}
                 onClick={handleCardClick}
               />
             ))}
             <AddAgentCard onClick={openAddAgentWizard} />
           </div>
         ) : (
-          <EmptyState 
+          <EmptyState
             onInitialize={openOrchestratorWizard}
             onImport={openImportDialog}
           />
         )}
       </div>
-      
+
       {/* Agent Edit Modal */}
       {editingAgentId && <AgentEditModal agentId={editingAgentId} />}
-      
+
       {/* Add Agent Wizard */}
       {isAddWizardOpen && <AddAgentWizard mode={wizardMode} />}
-      
+
       {/* Import Agents Dialog */}
       <ImportAgentsDialog />
     </>

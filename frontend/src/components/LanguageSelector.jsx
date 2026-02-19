@@ -4,9 +4,9 @@ const LanguageSelector = () => {
   const { i18n } = useTranslation();
 
   const languages = [
-    { code: 'pt', name: 'Português', flag: '��' },
-    { code: 'en', name: 'English', flag: '�🇸' },
-    { code: 'es', name: 'Español', flag: '��' }
+    { code: 'pt', name: 'Português', flag: '🇧🇷' },
+    { code: 'en', name: 'English', flag: '🇺🇸' },
+    { code: 'es', name: 'Español', flag: '🇪🇸' }
   ];
 
   const handleLanguageChange = (languageCode) => {

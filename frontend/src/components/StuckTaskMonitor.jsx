@@ -22,7 +22,7 @@ export default function StuckTaskMonitor() {
       const result = await api.get('/api/monitoring/stuck-tasks/check')
       setStuckTasks(result.stuck_tasks || [])
       setLastCheck(new Date(result.run_timestamp))
-      
+
       // Show notification if stuck tasks found
       if (result.stuck_tasks && result.stuck_tasks.length > 0) {
         setIsOpen(true)
@@ -36,7 +36,7 @@ export default function StuckTaskMonitor() {
 
   const getSeverityIcon = (hours, priority) => {
     const isUrgent = priority === 'URGENT'
-    
+
     if (hours > (isUrgent ? 24 : 48)) {
       return '🔴' // Critical
     } else if (hours > (isUrgent ? 12 : 24)) {
@@ -47,21 +47,21 @@ export default function StuckTaskMonitor() {
   }
 
   const hasIssues = stuckTasks.length > 0
-  
+
   // Get oldest stuck task
-  const oldestStuckTask = stuckTasks.length > 0 
-    ? stuckTasks.reduce((oldest, task) => 
-        task.time_stuck_hours > (oldest?.time_stuck_hours || 0) ? task : oldest, null)
+  const oldestStuckTask = stuckTasks.length > 0
+    ? stuckTasks.reduce((oldest, task) =>
+      task.time_stuck_hours > (oldest?.time_stuck_hours || 0) ? task : oldest, null)
     : null
 
   return (
     <>
       {/* Monitor Status Widget */}
       <div className={`stuck-task-widget ${hasIssues ? 'has-issues' : ''}`}>
-        <button 
+        <button
           className="widget-toggle"
           onClick={() => setIsOpen(!isOpen)}
-          title="Stuck Task Monitor"
+          title="Monitor de Tarefas Travadas"
         >
           <span className="monitor-icon">
             {hasIssues ? '⚠️' : '✅'}
@@ -80,7 +80,7 @@ export default function StuckTaskMonitor() {
         <div className="stuck-task-modal">
           <div className="stuck-task-content">
             <div className="stuck-task-header">
-              <h2>📋 Task Status</h2>
+              <h2>📋 Status das Tarefas</h2>
               <button className="close-btn" onClick={() => setIsOpen(false)}>×</button>
             </div>
 
@@ -90,16 +90,16 @@ export default function StuckTaskMonitor() {
                   {stuckTasks.length}
                 </div>
                 <div className="task-count-label">
-                  {stuckTasks.length === 1 ? 'Stuck Task' : 'Stuck Tasks'}
+                  {stuckTasks.length === 1 ? 'Tarefa Travada' : 'Tarefas Travadas'}
                 </div>
               </div>
 
               {oldestStuckTask && (
                 <div className="oldest-task-info">
-                  <div className="oldest-task-label">Oldest stuck:</div>
+                  <div className="oldest-task-label">Mais antiga travada:</div>
                   <div className="oldest-task-title">{oldestStuckTask.title}</div>
                   <div className="oldest-task-time">
-                    {getSeverityIcon(oldestStuckTask.time_stuck_hours, oldestStuckTask.priority)} 
+                    {getSeverityIcon(oldestStuckTask.time_stuck_hours, oldestStuckTask.priority)}
                     {oldestStuckTask.time_stuck_hours}h in {oldestStuckTask.status}
                   </div>
                 </div>
@@ -108,30 +108,30 @@ export default function StuckTaskMonitor() {
               {stuckTasks.length === 0 && (
                 <div className="no-stuck-tasks">
                   <div className="success-icon">✅</div>
-                  <p>No stuck tasks detected</p>
+                  <p>Nenhuma tarefa travada detectada</p>
                 </div>
               )}
 
               <div className="task-actions">
-                <button 
+                <button
                   className="check-btn-small"
                   onClick={runStuckTaskCheck}
                   disabled={loading}
                 >
-                  {loading ? '⏳' : '🔄'} Check Now
+                  {loading ? '⏳' : '🔄'} Verificar Agora
                 </button>
-                <button 
+                <button
                   className="detail-btn"
                   onClick={viewFullStatus}
                 >
                   <ExternalLink size={14} />
-                  View Details
+                  Ver Detalhes
                 </button>
               </div>
 
               {lastCheck && (
                 <div className="last-check-info">
-                  Last check: {formatTimeAgo(lastCheck)}
+                  Última verificação: {formatTimeAgo(lastCheck)}
                 </div>
               )}
             </div>

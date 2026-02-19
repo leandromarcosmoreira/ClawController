@@ -15,6 +15,8 @@ from sqlalchemy.orm import Session
 from database import SessionLocal
 from models import ActivityLog
 import logging
+import requests
+import os
 
 # Configuration
 HEALTH_CHECK_INTERVAL = 30  # Check every 30 seconds
@@ -70,37 +72,14 @@ class GatewayWatchdog:
         Returns: (is_healthy, status_message)
         """
         try:
-            # Try a simple status check command with timeout
-            result = await asyncio.wait_for(
-                asyncio.create_subprocess_exec(
-                    "openclaw", "status", "--json",
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE
-                ),
-                timeout=HEALTH_CHECK_TIMEOUT
-            )
+            openclaw_url = os.getenv("OPENCLAW_URL", "http://openclaw-gateway:18789")
+            response = requests.get(f"{openclaw_url}/api/models", timeout=HEALTH_CHECK_TIMEOUT)
             
-            stdout, stderr = await result.communicate()
-            
-            if result.returncode == 0:
-                # Parse status output to verify gateway is actually running
-                try:
-                    status_data = json.loads(stdout.decode())
-                    gateway_info = status_data.get("gateway", {})
-                    is_reachable = gateway_info.get("reachable", False)
-                    if is_reachable:
-                        return True, "Gateway healthy"
-                    else:
-                        error = gateway_info.get("error", "unreachable")
-                        return False, f"Gateway status: {error}"
-                except json.JSONDecodeError:
-                    return False, "Gateway responding but status unreadable"
+            if response.ok:
+                return True, "Gateway healthy"
             else:
-                error_msg = stderr.decode().strip() if stderr else "Unknown error"
-                return False, f"Status check failed: {error_msg}"
+                return False, f"Gateway status: {response.status_code}"
                 
-        except asyncio.TimeoutError:
-            return False, "Health check timed out"
         except Exception as e:
             return False, f"Health check error: {str(e)}"
     
@@ -109,42 +88,9 @@ class GatewayWatchdog:
         Attempt to restart the OpenClaw gateway.
         Returns: (success, message)
         """
-        try:
-            logging.info("Attempting to restart OpenClaw gateway...")
-            
-            # Try to restart using openclaw gateway start
-            result = await asyncio.wait_for(
-                asyncio.create_subprocess_exec(
-                    "openclaw", "gateway", "start",
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE
-                ),
-                timeout=30  # Give restart more time
-            )
-            
-            stdout, stderr = await result.communicate()
-            
-            if result.returncode == 0:
-                # Wait a moment for gateway to fully start
-                await asyncio.sleep(5)
-                
-                # Verify it's actually running
-                is_healthy, status_msg = await self.check_gateway_health()
-                if is_healthy:
-                    self.state["restart_count"] += 1
-                    self.state["consecutive_failures"] = 0
-                    self.state["uptime_start"] = datetime.utcnow().isoformat()
-                    return True, "Gateway restarted successfully"
-                else:
-                    return False, f"Gateway started but not healthy: {status_msg}"
-            else:
-                error_msg = stderr.decode().strip() if stderr else "Unknown error"
-                return False, f"Restart command failed: {error_msg}"
-                
-        except asyncio.TimeoutError:
-            return False, "Restart command timed out"
-        except Exception as e:
-            return False, f"Restart failed: {str(e)}"
+        # Restart logic skipped - CLI 'openclaw' not available in container
+        logging.warning("Auto-restart skipped: openclaw CLI not available")
+        return False, "Restart not supported in this environment"
     
     async def notify_crash(self, crash_info: Dict):
         """Send crash notification to main agent."""
@@ -186,11 +132,11 @@ Manual restart: `openclaw gateway restart`
 
 View watchdog status in ClawController dashboard."""
             
-            subprocess.Popen(
-                ["openclaw", "agent", "--agent", "main", "--message", message],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                cwd=str(Path.home())
+            openclaw_url = os.getenv("OPENCLAW_URL", "http://openclaw-gateway:18789")
+            requests.post(
+                f"{openclaw_url}/api/chat",
+                json={"agent_id": "main", "message": message},
+                timeout=5
             )
             
             logging.info(f"Sent gateway crash notification (consecutive: {consecutive})")
@@ -213,11 +159,11 @@ View watchdog status in ClawController dashboard."""
 
 Gateway is now healthy and operational."""
             
-            subprocess.Popen(
-                ["openclaw", "agent", "--agent", "main", "--message", message],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                cwd=str(Path.home())
+            openclaw_url = os.getenv("OPENCLAW_URL", "http://openclaw-gateway:18789")
+            requests.post(
+                f"{openclaw_url}/api/chat",
+                json={"agent_id": "main", "message": message},
+                timeout=5
             )
             
             logging.info("Sent gateway recovery notification")

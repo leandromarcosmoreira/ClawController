@@ -12,19 +12,32 @@ RUN npm install -g pnpm
 # Copy package.json files
 COPY package.json ./
 COPY backend/requirements.txt ./backend/
+COPY frontend/package.json ./frontend/
+COPY frontend/pnpm-lock.yaml ./frontend/
 
-# Copy source code first
+# Install frontend dependencies
+RUN cd frontend && pnpm install --frozen-lockfile
+
+# Copy source code
 COPY backend/ ./backend/
+COPY frontend/ ./frontend/
 
 # Install backend dependencies as root
 RUN python3 -m venv /app/venv
 RUN . /app/venv/bin/activate && pip3 install -r backend/requirements.txt
 
+# Build frontend
+RUN cd frontend && pnpm build
+
+# Install frontend server
+RUN npm install -g serve
+
 # Fix permissions for all directories and ensure activate is executable
 RUN chmod -R 755 /app && chmod +x /app/venv/bin/activate
 
-# Expose ports for backend only
-EXPOSE 8000
+# Expose ports
+EXPOSE 8000 5173
 
-# Development command with backend only (running as root)
-CMD ["sh", "-c", ". /app/venv/bin/activate && cd backend && python main.py"]
+# Development command with backend + frontend static server
+# Creates symlink at runtime (after volumes are mounted) so backend finds openclaw.json at ~/.openclaw/openclaw.json
+CMD ["sh", "-c", "mkdir -p /root/.openclaw && ln -sf /app/config/openclaw.json /root/.openclaw/openclaw.json && . /app/venv/bin/activate && cd backend && python main.py & serve -s /app/frontend/dist -l 5173 & wait"]

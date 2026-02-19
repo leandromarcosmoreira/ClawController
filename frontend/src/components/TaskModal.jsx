@@ -5,6 +5,7 @@ import MentionText from './MentionText'
 import DatePicker from 'react-datepicker'
 import { format, isPast, isToday, formatDistanceToNow } from 'date-fns'
 import { fetchTaskActivity, addTaskActivity, sendChatMessageToAgent } from '../api'
+import { useTranslation } from 'react-i18next'
 import 'react-datepicker/dist/react-datepicker.css'
 
 const renderInline = (text) => {
@@ -96,6 +97,7 @@ const getFileIcon = (filename) => {
 }
 
 export default function TaskModal() {
+  const { t } = useTranslation()
   const tasks = useMissionStore((state) => state.tasks)
   const agents = useMissionStore((state) => state.agents)
   const selectedTaskId = useMissionStore((state) => state.selectedTaskId)
@@ -111,7 +113,7 @@ export default function TaskModal() {
   const removeDeliverableAttachment = useMissionStore((state) => state.removeDeliverableAttachment)
   const addComment = useMissionStore((state) => state.addComment)
   const deleteTask = useMissionStore((state) => state.deleteTask)
-  
+
   const [showFeedback, setShowFeedback] = useState(false)
   const [feedback, setFeedback] = useState('')
   const [newDeliverableTitle, setNewDeliverableTitle] = useState('')
@@ -128,7 +130,7 @@ export default function TaskModal() {
   const [previewFile, setPreviewFile] = useState(null)
   const [previewContent, setPreviewContent] = useState('')
   const [previewLoading, setPreviewLoading] = useState(false)
-  
+
   // Mention autocomplete state
   const [showMentions, setShowMentions] = useState(false)
   const [mentionFilter, setMentionFilter] = useState('')
@@ -139,8 +141,8 @@ export default function TaskModal() {
   const filteredAgents = useMemo(() => {
     if (!mentionFilter) return agents
     const filter = mentionFilter.toLowerCase()
-    return agents.filter(a => 
-      a.name.toLowerCase().includes(filter) || 
+    return agents.filter(a =>
+      a.name.toLowerCase().includes(filter) ||
       a.id.toLowerCase().includes(filter)
     )
   }, [agents, mentionFilter])
@@ -167,16 +169,16 @@ export default function TaskModal() {
 
   const task = tasks.find((item) => item.id === selectedTaskId)
   const agent = agents.find((item) => item.id === task.assignedTo)
-  
+
   const currentStatusIndex = statusOrder.indexOf(task.status)
   const canMoveForward = currentStatusIndex < statusOrder.length - 1 && task.status !== 'REVIEW'
   const canSendBack = currentStatusIndex > 0 && task.status !== 'DONE'
   const isInReview = task.status === 'REVIEW'
   const isDone = task.status === 'DONE'
-  
+
   const dueDate = task.dueAt ? new Date(task.dueAt) : null
   const isOverdue = dueDate && isPast(dueDate) && !isToday(dueDate) && task.status !== 'DONE'
-  
+
   const handleMoveForward = () => {
     const nextStatus = statusOrder[currentStatusIndex + 1]
     if (nextStatus === 'REVIEW') {
@@ -185,7 +187,7 @@ export default function TaskModal() {
       moveTaskForward(task.id)
     }
   }
-  
+
   const handleSendBack = () => {
     if (feedback.trim()) {
       sendTaskBack(task.id, feedback)
@@ -195,11 +197,11 @@ export default function TaskModal() {
       setShowFeedback(true)
     }
   }
-  
+
   const handleApprove = () => {
     approveTask(task.id)
   }
-  
+
   const handleDelete = async () => {
     try {
       await deleteTask(task.id)
@@ -209,16 +211,16 @@ export default function TaskModal() {
       setShowDeleteConfirm(false)
     }
   }
-  
+
   const handleDueDateChange = (date) => {
     updateTaskDueDate(task.id, date ? date.toISOString() : null)
   }
-  
+
   const handleFileUpload = (itemId) => {
     setUploadingForItem(itemId)
     fileInputRef.current?.click()
   }
-  
+
   const handleFileSelected = (e) => {
     const file = e.target.files?.[0]
     if (file && uploadingForItem) {
@@ -237,11 +239,11 @@ export default function TaskModal() {
       fileInputRef.current.value = ''
     }
   }
-  
+
   const handleRemoveAttachment = (itemId) => {
     removeDeliverableAttachment(task.id, itemId)
   }
-  
+
   const handlePreviewFile = async (attachment) => {
     setPreviewFile(attachment)
     setPreviewLoading(true)
@@ -251,35 +253,35 @@ export default function TaskModal() {
         const text = await response.text()
         setPreviewContent(text)
       } else {
-        setPreviewContent('Error loading file preview')
+        setPreviewContent('Erro ao carregar visualização do arquivo')
       }
     } catch (error) {
-      setPreviewContent('Error loading file preview: ' + error.message)
+      setPreviewContent('Erro ao carregar visualização do arquivo: ' + error.message)
     }
     setPreviewLoading(false)
   }
-  
+
   const closePreview = () => {
     setPreviewFile(null)
     setPreviewContent('')
   }
-  
+
   const handleAddComment = async () => {
     if (!newComment.trim()) return
-    
+
     const commentText = newComment.trim()
-    
+
     // Clear input immediately for responsive UX
     setNewComment('')
     setShowMentions(false)
-    
+
     // Check for @mentions
     const mentionRegex = /@([\w-]+)/g
     const mentions = []
     let match
     while ((match = mentionRegex.exec(commentText)) !== null) {
       const mentionName = match[1].toLowerCase()
-      const mentionedAgent = agents.find(a => 
+      const mentionedAgent = agents.find(a =>
         a.name.toLowerCase() === mentionName ||
         a.id.toLowerCase() === mentionName ||
         a.name.toLowerCase().replace(/\s+/g, '') === mentionName
@@ -288,46 +290,34 @@ export default function TaskModal() {
         mentions.push(mentionedAgent)
       }
     }
-    
+
     // Always add to comments (backward compat)
     addComment(task.id, 'user', commentText)
-    
+
     // If there are mentions, also handle activity log and agent routing
     if (mentions.length > 0) {
       const targetAgent = mentions[0] // Route to first mentioned agent
-      
+
       // Optimistically add user comment to activity log immediately
       const optimisticEntry = {
         id: `temp-${Date.now()}`,
         agent_id: 'user',
-        agent: { id: 'user', name: 'User', avatar: '👤' },
+        agent: { id: 'user', name: 'Usuário', avatar: '👤' },
         message: commentText,
         timestamp: new Date().toISOString()
       }
       setActivityLog(prev => [...prev, optimisticEntry])
-      
+
       // Post user's comment to activity log
       try {
         await addTaskActivity(task.id, 'user', commentText)
-        
+
         // Build full task context for the agent
-        const taskContext = `You were mentioned in a task comment.
+        const taskContext = `Você foi mencionado em um comentário da tarefa.\n\n**Tarefa:** ${task.title}\n**Status:** ${task.status}\n**Descrição:** ${task.description || 'Sem descrição'}\n\n**Comentário de ${task.assignee?.name || 'usuário'}:**\n${commentText}\n\nPor favor, revise e responda apropriadamente. Você pode responder adicionando um comentário a esta tarefa via API:\n\n\`\`\`curl -X POST http://localhost:8000/api/tasks/${task.id}/comments -H "Content-Type: application/json" -d '{"agent_id": "${targetAgent.id}", "content": "Sua resposta aqui"}'\n\`\`\``
 
-**Task:** ${task.title}
-**Status:** ${task.status}
-**Description:** ${task.description || 'No description'}
-
-**Comment from ${task.assignee?.name || 'user'}:**
-${commentText}
-
-Please review and respond appropriately. You can reply by adding a comment to this task via the API:
-\`\`\`
-curl -X POST http://localhost:8000/api/tasks/${task.id}/comments -H "Content-Type: application/json" -d '{"agent_id": "${targetAgent.id}", "content": "Your response here"}'
-\`\`\``
-        
         // Route to the mentioned agent with full context
         await sendChatMessageToAgent(targetAgent.id, taskContext)
-        
+
         // Refresh activity log to show updates
         fetchTaskActivity(task.id)
           .then(setActivityLog)
@@ -337,7 +327,7 @@ curl -X POST http://localhost:8000/api/tasks/${task.id}/comments -H "Content-Typ
       }
     }
   }
-  
+
   const insertMention = (agent) => {
     const input = commentInputRef.current
     if (!input) return
@@ -345,13 +335,13 @@ curl -X POST http://localhost:8000/api/tasks/${task.id}/comments -H "Content-Typ
     // Find the @ symbol position before cursor
     const textBeforeCursor = newComment.slice(0, cursorPosition)
     const atIndex = textBeforeCursor.lastIndexOf('@')
-    
+
     if (atIndex !== -1) {
       const before = newComment.slice(0, atIndex)
       const after = newComment.slice(cursorPosition)
       const newValue = `${before}@${agent.name} ${after}`
       setNewComment(newValue)
-      
+
       // Set cursor after the mention
       const newCursorPos = atIndex + agent.name.length + 2
       setTimeout(() => {
@@ -359,7 +349,7 @@ curl -X POST http://localhost:8000/api/tasks/${task.id}/comments -H "Content-Typ
         input.focus()
       }, 0)
     }
-    
+
     setShowMentions(false)
     setMentionFilter('')
   }
@@ -369,11 +359,11 @@ curl -X POST http://localhost:8000/api/tasks/${task.id}/comments -H "Content-Typ
     const cursor = e.target.selectionStart
     setNewComment(value)
     setCursorPosition(cursor)
-    
+
     // Check if we're typing a mention
     const textBeforeCursor = value.slice(0, cursor)
     const atIndex = textBeforeCursor.lastIndexOf('@')
-    
+
     if (atIndex !== -1) {
       const textAfterAt = textBeforeCursor.slice(atIndex + 1)
       // Only show mentions if @ is at start or after a space, and no space after @
@@ -384,11 +374,11 @@ curl -X POST http://localhost:8000/api/tasks/${task.id}/comments -H "Content-Typ
         return
       }
     }
-    
+
     setShowMentions(false)
     setMentionFilter('')
   }
-  
+
   const handleCommentKeyDown = (e) => {
     if (showMentions && filteredAgents.length > 0) {
       if (e.key === 'ArrowDown') {
@@ -411,7 +401,7 @@ curl -X POST http://localhost:8000/api/tasks/${task.id}/comments -H "Content-Typ
         return
       }
     }
-    
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleAddComment()
@@ -423,7 +413,7 @@ curl -X POST http://localhost:8000/api/tasks/${task.id}/comments -H "Content-Typ
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <div>
-            <span className="modal-label">Task Detail</span>
+            <span className="modal-label">{t('tasks.task_detail')}</span>
             <h2>{task.title}</h2>
             <div className="modal-badges">
               <span className="status-badge" style={{ backgroundColor: statusColors[task.status] }}>
@@ -431,7 +421,7 @@ curl -X POST http://localhost:8000/api/tasks/${task.id}/comments -H "Content-Typ
               </span>
               {task.priority === 'URGENT' && (
                 <span className="priority-badge priority-badge--urgent">
-                  🔥 URGENT
+                  🔥 URGENTE
                 </span>
               )}
               <span className="agent-badge">
@@ -450,43 +440,43 @@ curl -X POST http://localhost:8000/api/tasks/${task.id}/comments -H "Content-Typ
           <div className="modal-section due-date-section">
             <h3>
               <Calendar size={16} />
-              Due Date
+              {t('tasks.due_date')}
             </h3>
             <div className="due-date-picker-container">
               <DatePicker
                 selected={dueDate}
                 onChange={handleDueDateChange}
                 dateFormat="MMM d, yyyy"
-                placeholderText="Set due date..."
+                placeholderText={t('tasks.set_due_date')}
                 className={`due-date-input ${isOverdue ? 'due-date-input--overdue' : ''}`}
                 isClearable
                 popperPlacement="bottom-start"
               />
               {isOverdue && (
-                <span className="overdue-badge">Overdue!</span>
+                <span className="overdue-badge">{t('tasks.overdue_badge')}</span>
               )}
               {dueDate && isToday(dueDate) && !isDone && (
-                <span className="due-today-badge">Due Today</span>
+                <span className="due-today-badge">{t('tasks.due_today')}</span>
               )}
             </div>
           </div>
-          
+
           <div className="modal-section">
-            <h3>Description</h3>
+            <h3>{t('tasks.description')}</h3>
             <div className="markdown">
               {renderMarkdown(task.markdown)}
             </div>
           </div>
 
           <div className="modal-section">
-            <h3>Deliverables</h3>
+            <h3>{t('tasks.deliverables')}</h3>
             <div className="checklist">
               {task.checklist.map((item) => (
                 <div key={item.id} className="deliverable-item">
                   <label className={`check-item ${item.done ? 'done' : ''}`}>
-                    <input 
-                      type="checkbox" 
-                      checked={item.done} 
+                    <input
+                      type="checkbox"
+                      checked={item.done}
                       onChange={() => toggleChecklistItem(task.id, item.id)}
                     />
                     <span>{item.label}</span>
@@ -495,35 +485,35 @@ curl -X POST http://localhost:8000/api/tasks/${task.id}/comments -H "Content-Typ
                     {item.attachment ? (
                       <div className="attachment-badge">
                         <span className="attachment-icon">{getFileIcon(item.attachment.name)}</span>
-                        <button 
+                        <button
                           className="attachment-name clickable"
                           onClick={() => handlePreviewFile(item.attachment)}
-                          title="Click to preview"
+                          title={t('tasks.click_to_preview')}
                         >
                           {item.attachment.name}
                         </button>
-                        <a 
+                        <a
                           href={`/api/files/preview?path=${encodeURIComponent(item.attachment.path)}`}
-                          target="_blank" 
+                          target="_blank"
                           rel="noopener noreferrer"
                           className="attachment-download"
-                          title="Download"
+                          title={t('tasks.download')}
                         >
                           <Download size={12} />
                         </a>
-                        <button 
+                        <button
                           className="attachment-remove"
                           onClick={() => handleRemoveAttachment(item.id)}
-                          title="Remove"
+                          title={t('tasks.remove')}
                         >
                           <Trash2 size={12} />
                         </button>
                       </div>
                     ) : (
-                      <button 
+                      <button
                         className="attach-button"
                         onClick={() => handleFileUpload(item.id)}
-                        title="Attach file"
+                        title={t('tasks.attach_file')}
                       >
                         <Paperclip size={14} />
                       </button>
@@ -531,12 +521,12 @@ curl -X POST http://localhost:8000/api/tasks/${task.id}/comments -H "Content-Typ
                   </div>
                 </div>
               ))}
-              
+
               {/* Add new deliverable */}
               <div className="add-deliverable">
                 <input
                   type="text"
-                  placeholder="Add deliverable..."
+                  placeholder="Adicionar entregável..."
                   value={newDeliverableTitle}
                   onChange={(e) => setNewDeliverableTitle(e.target.value)}
                   onKeyPress={async (e) => {
@@ -581,7 +571,7 @@ curl -X POST http://localhost:8000/api/tasks/${task.id}/comments -H "Content-Typ
                 )
               })}
             </div>
-            
+
             {/* Add Comment Input */}
             <div className="add-comment-container">
               {/* Mention autocomplete dropdown */}
@@ -595,8 +585,8 @@ curl -X POST http://localhost:8000/api/tasks/${task.id}/comments -H "Content-Typ
                       onClick={() => insertMention(agent)}
                       onMouseEnter={() => setMentionIndex(index)}
                     >
-                      <span 
-                        className="mention-avatar" 
+                      <span
+                        className="mention-avatar"
                         style={{ backgroundColor: agent.color }}
                       >
                         {agent.avatar}
@@ -619,7 +609,7 @@ curl -X POST http://localhost:8000/api/tasks/${task.id}/comments -H "Content-Typ
                 onKeyDown={handleCommentKeyDown}
                 className="add-comment-input"
               />
-              <button 
+              <button
                 className="add-comment-button"
                 onClick={handleAddComment}
                 disabled={!newComment.trim()}
@@ -659,7 +649,7 @@ curl -X POST http://localhost:8000/api/tasks/${task.id}/comments -H "Content-Typ
               )}
             </div>
           </div>
-          
+
           {/* Delete Confirmation */}
           {showDeleteConfirm && (
             <div className="modal-section delete-confirm-section">
@@ -667,14 +657,14 @@ curl -X POST http://localhost:8000/api/tasks/${task.id}/comments -H "Content-Typ
                 <span className="delete-confirm-icon">⚠️</span>
                 <span className="delete-confirm-text">Delete this task permanently?</span>
                 <div className="delete-confirm-actions">
-                  <button 
+                  <button
                     type="button"
                     className="action-btn action-btn--secondary"
                     onClick={() => setShowDeleteConfirm(false)}
                   >
                     Cancel
                   </button>
-                  <button 
+                  <button
                     type="button"
                     className="action-btn action-btn--danger"
                     onClick={handleDelete}
@@ -686,12 +676,12 @@ curl -X POST http://localhost:8000/api/tasks/${task.id}/comments -H "Content-Typ
               </div>
             </div>
           )}
-          
+
           {/* Status Actions */}
           {!isDone && (
             <div className="modal-section">
               <h3>Actions</h3>
-              
+
               {/* Reviewer Selection (when moving to REVIEW) */}
               {canMoveForward && statusOrder[currentStatusIndex + 1] === 'REVIEW' && (
                 <div className="reviewer-select">
@@ -720,17 +710,17 @@ curl -X POST http://localhost:8000/api/tasks/${task.id}/comments -H "Content-Typ
                   </div>
                 </div>
               )}
-              
+
               {/* Review Status Badge */}
               {isInReview && task.reviewer && (
                 <div className="review-info">
                   <span className="review-badge">
-                    {task.reviewer === 'human' ? '👤' : '🤖'} 
+                    {task.reviewer === 'human' ? '👤' : '🤖'}
                     Awaiting review from <strong>{task.reviewer}</strong>
                   </span>
                 </div>
               )}
-              
+
               {/* Feedback Input */}
               {showFeedback && (
                 <div className="feedback-input">
@@ -742,7 +732,7 @@ curl -X POST http://localhost:8000/api/tasks/${task.id}/comments -H "Content-Typ
                   />
                 </div>
               )}
-              
+
               <div className="action-buttons">
                 {/* Send Back Button */}
                 {canSendBack && (
@@ -755,7 +745,7 @@ curl -X POST http://localhost:8000/api/tasks/${task.id}/comments -H "Content-Typ
                     {showFeedback ? 'Submit Feedback' : 'Request Changes'}
                   </button>
                 )}
-                
+
                 {/* Review Actions */}
                 {isInReview ? (
                   <button
@@ -776,7 +766,7 @@ curl -X POST http://localhost:8000/api/tasks/${task.id}/comments -H "Content-Typ
                     <ChevronRight size={16} />
                   </button>
                 ) : null}
-                
+
                 {/* Delete Button */}
                 {!showDeleteConfirm && (
                   <button
@@ -790,7 +780,7 @@ curl -X POST http://localhost:8000/api/tasks/${task.id}/comments -H "Content-Typ
               </div>
             </div>
           )}
-          
+
           {/* Delete button for completed tasks */}
           {isDone && !showDeleteConfirm && (
             <div className="modal-section">
@@ -808,7 +798,7 @@ curl -X POST http://localhost:8000/api/tasks/${task.id}/comments -H "Content-Typ
           )}
         </div>
       </div>
-      
+
       {/* File Preview Modal */}
       {previewFile && (
         <div className="preview-overlay" onClick={closePreview}>

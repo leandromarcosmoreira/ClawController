@@ -17,20 +17,58 @@ class TaskStatus(str, enum.Enum):
     REVIEW = "REVIEW"
     DONE = "DONE"
 
+    @property
+    def label(self):
+        translations = {
+            "INBOX": "Entrada",
+            "ASSIGNED": "Atribuído",
+            "IN_PROGRESS": "Em Progresso",
+            "REVIEW": "Revisão",
+            "DONE": "Concluído"
+        }
+        return translations.get(self.value, self.value)
+
 class Priority(str, enum.Enum):
     NORMAL = "NORMAL"
     URGENT = "URGENT"
+
+    @property
+    def label(self):
+        translations = {
+            "NORMAL": "Normal",
+            "URGENT": "Urgente"
+        }
+        return translations.get(self.value, self.value)
 
 class AgentRole(str, enum.Enum):
     LEAD = "LEAD"
     INT = "INT"
     SPC = "SPC"
 
+    @property
+    def label(self):
+        translations = {
+            "LEAD": "Líder",
+            "INT": "Intermediário",
+            "SPC": "Especialista"
+        }
+        return translations.get(self.value, self.value)
+
 class AgentStatus(str, enum.Enum):
     WORKING = "WORKING"
     IDLE = "IDLE"
     STANDBY = "STANDBY"  # Configured but inactive - ready to activate
     OFFLINE = "OFFLINE"  # Not configured or unreachable
+
+    @property
+    def label(self):
+        translations = {
+            "WORKING": "Trabalhando",
+            "IDLE": "Ocioso",
+            "STANDBY": "Em Espera",
+            "OFFLINE": "Offline"
+        }
+        return translations.get(self.value, self.value)
 
 class Agent(Base):
     __tablename__ = "agents"

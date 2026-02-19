@@ -6,7 +6,7 @@ export default function AnnouncementModal() {
   const isOpen = useMissionStore((state) => state.isAnnouncementOpen)
   const closeAnnouncement = useMissionStore((state) => state.closeAnnouncement)
   const broadcastAnnouncement = useMissionStore((state) => state.broadcastAnnouncement)
-  
+
   const [title, setTitle] = useState('')
   const [message, setMessage] = useState('')
   const [priority, setPriority] = useState('Normal')
@@ -17,10 +17,10 @@ export default function AnnouncementModal() {
 
   const handleSubmit = async () => {
     if (!message.trim()) return
-    
+
     setIsSubmitting(true)
     setError(null)
-    
+
     try {
       await broadcastAnnouncement(title.trim() || null, message.trim(), priority)
       // Reset form on success
@@ -48,7 +48,7 @@ export default function AnnouncementModal() {
         <div className="modal-header">
           <h2>
             <Megaphone size={20} />
-            Squad Announcement
+            Comunicado da Equipe
           </h2>
           <button className="icon-button" onClick={handleClose} type="button">
             <X size={18} />
@@ -56,10 +56,10 @@ export default function AnnouncementModal() {
         </div>
         <div className="modal-content">
           <label className="field">
-            <span className="field-label">TITLE (OPTIONAL)</span>
-            <input 
-              type="text" 
-              placeholder="Announcement title..." 
+            <span className="field-label">TÍTULO (OPCIONAL)</span>
+            <input
+              type="text"
+              placeholder="Título do comunicado..."
               className="field-input"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -67,10 +67,10 @@ export default function AnnouncementModal() {
             />
           </label>
           <label className="field">
-            <span className="field-label">MESSAGE *</span>
-            <textarea 
-              placeholder="Enter your announcement message..." 
-              rows={5} 
+            <span className="field-label">MENSAGEM *</span>
+            <textarea
+              placeholder="Digite sua mensagem de comunicado..."
+              rows={5}
               className="field-textarea"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
@@ -79,7 +79,7 @@ export default function AnnouncementModal() {
             />
           </label>
           <div className="field">
-            <span className="field-label">PRIORITY</span>
+            <span className="field-label">PRIORIDADE</span>
             <div className="priority-toggle">
               <button
                 type="button"
@@ -96,34 +96,34 @@ export default function AnnouncementModal() {
                 disabled={isSubmitting}
               >
                 <AlarmClock size={14} />
-                URGENT
+                URGENTE
               </button>
             </div>
           </div>
-          
+
           {error && (
             <div className="error-message" style={{ color: '#dc2626', fontSize: 13, marginBottom: 12 }}>
               {error}
             </div>
           )}
-          
+
           <div className="modal-actions">
-            <button 
-              className="cancel-button" 
-              type="button" 
+            <button
+              className="cancel-button"
+              type="button"
               onClick={handleClose}
               disabled={isSubmitting}
             >
               Cancel
             </button>
-            <button 
+            <button
               className={`broadcast-button ${isSubmitting ? 'button-loading' : ''}`}
               type="button"
               onClick={handleSubmit}
               disabled={!message.trim() || isSubmitting}
             >
               <Megaphone size={16} />
-              {isSubmitting ? 'Broadcasting...' : 'Broadcast to Squad'}
+              {isSubmitting ? 'Transmitindo...' : 'Transmitir para Equipe'}
             </button>
           </div>
         </div>

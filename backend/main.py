@@ -11,6 +11,7 @@ import os
 import glob
 import time
 import subprocess
+import requests
 
 from database import init_db, get_db, SessionLocal
 from models import (
@@ -20,6 +21,20 @@ from models import (
 )
 from stuck_task_monitor import run_stuck_task_check, get_monitor_status
 from gateway_watchdog import start_gateway_watchdog, stop_gateway_watchdog, get_watchdog_status, run_health_check, manual_restart
+
+def send_openclaw_message(agent_id: str, message: str, timeout: int = 30):
+    """Helper to send a message to an OpenClaw agent via Gateway API."""
+    openclaw_url = os.getenv("OPENCLAW_URL", "http://openclaw-gateway:18789")
+    try:
+        response = requests.post(
+            f"{openclaw_url}/api/chat",
+            json={"agent_id": agent_id, "message": message},
+            timeout=timeout
+        )
+        return response.ok, response.text
+    except Exception as e:
+        print(f"Error calling OpenClaw API: {e}")
+        return False, str(e)
 
 app = FastAPI(title="ClawController API", version="2.0.0")
 
@@ -68,6 +83,8 @@ class AgentResponse(BaseModel):
     description: Optional[str]
     avatar: Optional[str]
     status: str
+    role_label: Optional[str] = None
+    status_label: Optional[str] = None
     primary_model: Optional[str]
     fallback_model: Optional[str]
     current_model: Optional[str]
@@ -205,12 +222,8 @@ def notify_task_completed(task, completed_by: str = None):
 View in ClawController: http://localhost:5001"""
 
     try:
-        subprocess.Popen(
-            ["openclaw", "agent", "--agent", "main", "--message", message],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            cwd=str(Path.home())
-        )
+        # Route via HTTP to OpenClaw gateway
+        send_openclaw_message("main", message)
         print(f"Notified main agent of task completion: {task.title}")
     except Exception as e:
         print(f"Failed to notify main agent of completion: {e}")
@@ -248,12 +261,8 @@ def notify_reviewer(task, submitted_by: str = None):
 View in ClawController: http://localhost:5001/tasks/{task.id}"""
 
     try:
-        subprocess.Popen(
-            ["openclaw", "agent", "--agent", reviewer_id, "--message", message],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            cwd=str(Path.home())
-        )
+        # Route via HTTP to OpenClaw gateway
+        send_openclaw_message(reviewer_id, message)
         print(f"Notified reviewer {reviewer_id} of task needing review: {task.title}")
     except Exception as e:
         print(f"Failed to notify reviewer {reviewer_id}: {e}")
@@ -280,12 +289,8 @@ curl -X POST http://localhost:8000/api/tasks/{task.id}/activity -H "Content-Type
 View in ClawController: http://localhost:5001"""
 
     try:
-        subprocess.Popen(
-            ["openclaw", "agent", "--agent", task.assignee_id, "--message", message],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            cwd=str(Path.home())
-        )
+        # Route via HTTP to OpenClaw gateway
+        send_openclaw_message(task.assignee_id, message)
         print(f"Notified agent {task.assignee_id} of task rejection: {task.title}")
     except Exception as e:
         print(f"Failed to notify agent {task.assignee_id} of rejection: {e}")
@@ -314,12 +319,8 @@ curl -X POST http://localhost:8000/api/tasks/{task.id}/activity -H "Content-Type
 Post an activity with 'completed' or 'done' in the message - the system will auto-transition to REVIEW."""
 
     try:
-        subprocess.Popen(
-            ["openclaw", "agent", "--agent", task.assignee_id, "--message", message],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            cwd=str(Path.home())
-        )
+        # Route via HTTP to OpenClaw gateway
+        send_openclaw_message(task.assignee_id, message)
         print(f"Notified agent {task.assignee_id} of task: {task.title}")
     except Exception as e:
         print(f"Failed to notify agent {task.assignee_id}: {e}")
@@ -341,43 +342,21 @@ async def openclaw_session_monitor():
     """
     print("OpenClaw session monitor started")
     
-    # Check if openclaw CLI is available
-    openclaw_available = False
-    try:
-        result = subprocess.run(
-            ["openclaw", "--version"],
-            capture_output=True,
-            text=True,
-            timeout=5
-        )
-        openclaw_available = result.returncode == 0
-        if openclaw_available:
-            print(f"OpenClaw CLI available: {result.stdout.strip()}")
-    except FileNotFoundError:
-        print("Session monitor: openclaw CLI not found - skipping session monitoring")
-    except Exception as e:
-        print(f"Session monitor: error checking openclaw: {e}")
-    
-    if not openclaw_available:
-        # Exit gracefully - session monitoring requires openclaw CLI
-        return
+    # Session monitoring now uses Gateway API directly
+    openclaw_available = True
     
     while True:
         try:
             await asyncio.sleep(10)  # Check every 10 seconds
             
-            # Get active sessions from OpenClaw
-            result = subprocess.run(
-                ["openclaw", "sessions", "list", "--json"],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
+            # Get active sessions from OpenClaw via Gateway API
+            openclaw_url = os.getenv("OPENCLAW_URL", "http://openclaw-gateway:18789")
+            response = requests.get(f"{openclaw_url}/api/sessions", timeout=5)
             
-            if result.returncode != 0:
+            if not response.ok:
                 continue
                 
-            sessions_data = json.loads(result.stdout)
+            sessions_data = response.json()
             active_agents = set()
             
             # Extract agent IDs from active sessions
@@ -443,13 +422,19 @@ async def websocket_endpoint(websocket: WebSocket):
 # Agent endpoints
 @app.get("/api/agents", response_model=List[AgentResponse])
 def get_agents(db: Session = Depends(get_db)):
-    return db.query(Agent).all()
+    agents = db.query(Agent).all()
+    for agent in agents:
+        agent.role_label = agent.role.label
+        agent.status_label = agent.status.label
+    return agents
 
 @app.get("/api/agents/{agent_id}", response_model=AgentResponse)
 def get_agent(agent_id: str, db: Session = Depends(get_db)):
     agent = db.query(Agent).filter(Agent.id == agent_id).first()
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
+    agent.role_label = agent.role.label
+    agent.status_label = agent.status.label
     return agent
 
 @app.patch("/api/agents/{agent_id}/status")
@@ -509,6 +494,8 @@ class OpenClawAgentResponse(BaseModel):
     description: Optional[str] = None
     avatar: Optional[str] = None
     status: str
+    role_label: Optional[str] = None
+    status_label: Optional[str] = None
     emoji: Optional[str] = None
     workspace: Optional[str] = None
     # Temporarily removing model field to fix validation issue
@@ -600,9 +587,11 @@ def get_openclaw_agents(db: Session = Depends(get_db)):
             id=agent_id,
             name=name,
             role=role,
+            role_label=AgentRole(role).label if role in [r.value for r in AgentRole] else role,
             description=None,
             avatar=None,
             status=status,
+            status_label=AgentStatus(status).label if status in [s.value for s in AgentStatus] else status,
             emoji=None,
             workspace=None
         ))
@@ -823,6 +812,7 @@ async def create_task(task_data: TaskCreate, db: Session = Depends(get_db)):
         "id": task.id, 
         "title": task.title, 
         "status": task.status.value,
+        "status_label": task.status.label,
         "assignee_id": task.assignee_id,
         "auto_assigned": auto_assigned
     }
@@ -838,7 +828,9 @@ def get_task(task_id: str, db: Session = Depends(get_db)):
         "title": task.title,
         "description": task.description,
         "status": task.status.value,
+        "status_label": task.status.label,
         "priority": task.priority.value,
+        "priority_label": task.priority.label,
         "tags": json.loads(task.tags) if task.tags else [],
         "assignee_id": task.assignee_id,
         "assignee": {"id": task.assignee.id, "name": task.assignee.name, "avatar": task.assignee.avatar} if task.assignee else None,
@@ -1202,17 +1194,8 @@ curl -X POST http://localhost:8000/api/tasks/{task.id}/comments -H "Content-Type
 ```"""
 
     try:
-        # Use subprocess to call OpenClaw CLI
-        subprocess.Popen(
-            [
-                "openclaw", "agent",
-                "--agent", agent_id,
-                "--message", message
-            ],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            cwd=str(Path.home())
-        )
+        # Route via HTTP to OpenClaw gateway
+        send_openclaw_message(agent_id, message)
         print(f"Routed mention to agent {agent_id}")
     except Exception as e:
         # Log error but don't fail the comment creation
@@ -1803,40 +1786,19 @@ curl -X PATCH http://localhost:8000/api/tasks/{task_id} \\
     db.commit()
     
     # Spawn isolated session for this task
-    try:
-        result = subprocess.run(
-            [
-                "openclaw", "sessions", "spawn",
-                "--agent", task.assignee_id,
-                "--label", f"task-{task_id[:8]}",
-                "--message", task_message
-            ],
-            capture_output=True,
-            text=True,
-            timeout=30
-        )
-        
-        if result.returncode != 0:
-            # Fallback to direct agent command
-            result = subprocess.run(
-                ["openclaw", "agent", "--agent", task.assignee_id, "--message", task_message],
-                capture_output=True,
-                text=True,
-                timeout=30
-            )
-        
-        return {
-            "ok": True,
-            "task_id": task_id,
-            "agent_id": task.assignee_id,
-            "session_label": f"task-{task_id[:8]}",
-            "message": "Task routed with fresh context"
-        }
-        
-    except subprocess.TimeoutExpired:
-        raise HTTPException(status_code=504, detail="Agent spawn timed out")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to route task: {str(e)}")
+    # Route via HTTP to OpenClaw gateway
+    success, response_text = send_openclaw_message(task.assignee_id, task_message)
+    
+    if not success:
+        print(f"Failed to route task {task_id}: {response_text}")
+    
+    return {
+        "ok": True,
+        "task_id": task_id,
+        "agent_id": task.assignee_id,
+        "session_label": f"task-{task_id[:8]}",
+        "message": "Task routed with fresh context"
+    }
 
 
 # ============ Recurring Tasks ============
@@ -2186,21 +2148,18 @@ async def trigger_recurring_task(recurring_id: str, db: Session = Depends(get_db
 def get_models():
     """Return list of available models from OpenClaw API."""
     try:
-        # Call OpenClaw models list API directly (--all to get full catalog)
-        result = subprocess.run(
-            ["openclaw", "models", "list", "--all", "--json"],
-            capture_output=True,
-            text=True,
-            timeout=10,
-            cwd=str(Path.home())
-        )
+        # Get gateway URL from environment variable
+        openclaw_url = os.getenv("OPENCLAW_URL", "http://openclaw-gateway:18789")
         
-        if result.returncode != 0:
-            print(f"OpenClaw models command failed: {result.stderr}")
-            raise Exception(f"Command failed with code {result.returncode}")
+        # Call OpenClaw gateway models API directly
+        response = requests.get(f"{openclaw_url}/api/models", timeout=10)
+        
+        if not response.ok:
+            print(f"OpenClaw models API failed with status {response.status_code}")
+            raise Exception(f"API request failed with status {response.status_code}")
         
         # Parse OpenClaw JSON response
-        openclaw_data = json.loads(result.stdout)
+        openclaw_data = response.json()
         models = openclaw_data.get("models", [])
         
         available_models = []
@@ -2365,17 +2324,9 @@ Make the TOOLS.md list relevant tools and integrations for this type of agent.
 Choose an appropriate model: opus for complex reasoning, sonnet for general tasks, haiku for simple/fast tasks, codex for coding."""
 
         try:
-            result = subprocess.run(
-                ["openclaw", "agent", "--agent", "main", "--message", prompt],
-                capture_output=True,
-                text=True,
-                timeout=60
-            )
+            success, response_text = send_openclaw_message("main", prompt, timeout=60)
             
-            if result.returncode == 0 and result.stdout.strip():
-                # Try to parse JSON from response
-                response_text = result.stdout.strip()
-                
+            if success and response_text.strip():
                 # Find JSON in response (might have extra text)
                 json_start = response_text.find('{')
                 json_end = response_text.rfind('}') + 1
@@ -2825,12 +2776,8 @@ The agent will continue using the fallback model until manually restored to prim
 View in ClawController: http://localhost:5001"""
 
         try:
-            subprocess.Popen(
-                ["openclaw", "agent", "--agent", "main", "--message", message],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                cwd=str(Path.home())
-            )
+            # Route via HTTP to OpenClaw gateway
+            send_openclaw_message("main", message)
             print(f"Notified main agent about model fallback for {agent.name}")
         except Exception as e:
             print(f"Failed to notify about model fallback: {e}")
