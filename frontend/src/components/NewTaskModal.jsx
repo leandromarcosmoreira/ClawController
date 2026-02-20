@@ -31,7 +31,7 @@ export default function NewTaskModal() {
   const [tags, setTags] = useState([])
   const [dueDate, setDueDate] = useState(null)
   const [error, setError] = useState(null)
-  
+
   // Recurring task state
   const [isRecurring, setIsRecurring] = useState(false)
   const [scheduleType, setScheduleType] = useState('daily')
@@ -39,7 +39,7 @@ export default function NewTaskModal() {
   const [selectedDays, setSelectedDays] = useState([0, 1, 2, 3, 4]) // Mon-Fri by default
   const [hourlyInterval, setHourlyInterval] = useState(1)
   const [cronExpression, setCronExpression] = useState('')
-  
+
   const isLoading = loadingTasks || loadingRecurring
 
   if (!isOpen) return null
@@ -69,7 +69,7 @@ export default function NewTaskModal() {
       setSelectedDays([...selectedDays, dayValue].sort())
     }
   }
-  
+
   const getScheduleValue = () => {
     switch (scheduleType) {
       case 'weekly':
@@ -88,7 +88,7 @@ export default function NewTaskModal() {
     if (!title.trim()) return
 
     setError(null)
-    
+
     try {
       if (isRecurring) {
         // Create recurring task
@@ -128,7 +128,7 @@ export default function NewTaskModal() {
       setSelectedDays([0, 1, 2, 3, 4])
       setHourlyInterval(1)
       setCronExpression('')
-    } catch (err) {
+    } catch {
       setError(isRecurring ? 'Failed to create recurring task.' : 'Failed to create task. Please try again.')
     }
   }
@@ -236,7 +236,7 @@ export default function NewTaskModal() {
                   type="button"
                   className={`agent-select-chip ${assignedTo === agent.id ? 'active' : ''}`}
                   onClick={() => setAssignedTo(agent.id)}
-                  style={assignedTo === agent.id ? { 
+                  style={assignedTo === agent.id ? {
                     borderColor: agent.color,
                     backgroundColor: `${agent.color}15`
                   } : undefined}
@@ -312,7 +312,7 @@ export default function NewTaskModal() {
                   <option value="cron">Custom cron</option>
                 </select>
               </div>
-              
+
               {/* Time picker for daily/weekly */}
               {(scheduleType === 'daily' || scheduleType === 'weekly') && (
                 <div className="field">
@@ -329,7 +329,7 @@ export default function NewTaskModal() {
                   />
                 </div>
               )}
-              
+
               {/* Day picker for weekly */}
               {scheduleType === 'weekly' && (
                 <div className="field">
@@ -349,7 +349,7 @@ export default function NewTaskModal() {
                   </div>
                 </div>
               )}
-              
+
               {/* Hours interval for hourly */}
               {scheduleType === 'hourly' && (
                 <div className="field">
@@ -367,7 +367,7 @@ export default function NewTaskModal() {
                   </div>
                 </div>
               )}
-              
+
               {/* Cron expression input */}
               {scheduleType === 'cron' && (
                 <div className="field">
@@ -396,8 +396,8 @@ export default function NewTaskModal() {
             <button type="button" className="secondary-button" onClick={handleClose} disabled={isLoading}>
               Cancel
             </button>
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               className={`primary-button ${isLoading ? 'button-loading' : ''}`}
               disabled={!title.trim() || loadingTasks}
             >

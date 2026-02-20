@@ -1,0 +1,14 @@
+/home/lemoreira/git/integracoes/ClawController/backend/target/release/deps/serde-31b59dbf13e459a1.d: /home/lemoreira/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /home/lemoreira/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /home/lemoreira/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /home/lemoreira/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /home/lemoreira/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /home/lemoreira/git/integracoes/ClawController/backend/target/release/build/serde-b284f30e43ef023c/out/private.rs
+
+/home/lemoreira/git/integracoes/ClawController/backend/target/release/deps/libserde-31b59dbf13e459a1.rlib: /home/lemoreira/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /home/lemoreira/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /home/lemoreira/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /home/lemoreira/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /home/lemoreira/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /home/lemoreira/git/integracoes/ClawController/backend/target/release/build/serde-b284f30e43ef023c/out/private.rs
+
+/home/lemoreira/git/integracoes/ClawController/backend/target/release/deps/libserde-31b59dbf13e459a1.rmeta: /home/lemoreira/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /home/lemoreira/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /home/lemoreira/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /home/lemoreira/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /home/lemoreira/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /home/lemoreira/git/integracoes/ClawController/backend/target/release/build/serde-b284f30e43ef023c/out/private.rs
+
+/home/lemoreira/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs:
+/home/lemoreira/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs:
+/home/lemoreira/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs:
+/home/lemoreira/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs:
+/home/lemoreira/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs:
+/home/lemoreira/git/integracoes/ClawController/backend/target/release/build/serde-b284f30e43ef023c/out/private.rs:
+
+# env-dep:OUT_DIR=/home/lemoreira/git/integracoes/ClawController/backend/target/release/build/serde-b284f30e43ef023c/out

@@ -105,6 +105,7 @@ function EmptyState({ onInitialize, onImport }) {
 }
 
 export default function AgentManagement() {
+  const { t } = useTranslation()
   const isOpen = useMissionStore((s) => s.isAgentManagementOpen)
   const agents = useMissionStore((s) => s.agents)
   const editingAgentId = useMissionStore((s) => s.editingAgentId)

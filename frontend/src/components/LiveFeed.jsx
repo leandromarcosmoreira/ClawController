@@ -58,7 +58,7 @@ export default function LiveFeed() {
           type="button"
           className="collapse-toggle"
           onClick={() => setIsCollapsed(!isCollapsed)}
-          title={isCollapsed ? 'Expandir' : 'Recolher'}
+          title={isCollapsed ? t('common.expand') : t('common.collapse')}
         >
           {isCollapsed ? '+' : '−'}
         </button>

@@ -65,13 +65,14 @@ function AgentImportCard({ agent, isSelected, onToggle, isAlreadyExists }) {
 }
 
 export default function ImportAgentsDialog() {
+  const { t } = useTranslation()
   const isOpen = useMissionStore((s) => s.isImportDialogOpen)
   const closeImportDialog = useMissionStore((s) => s.closeImportDialog)
   const fetchOpenClawAgents = useMissionStore((s) => s.fetchOpenClawAgents)
   const importAgentsFromOpenClaw = useMissionStore((s) => s.importAgentsFromOpenClaw)
   const openClawAgents = useMissionStore((s) => s.openClawAgents)
   const existingAgents = useMissionStore((s) => s.agents)
-  const loadingAgentManagement = useMissionStore((s) => s.loadingAgentManagement)
+
 
   const [selectedAgents, setSelectedAgents] = useState(new Set())
   const [loading, setLoading] = useState(false)
@@ -123,7 +124,7 @@ export default function ImportAgentsDialog() {
       setSelectedAgents(new Set()) // Clear selection after import
     } catch (error) {
       console.error('Import failed:', error)
-      alert(`Import failed: ${error.message}`)
+      alert(t('agent_management.import_dialog.import_failed', { message: error.message }))
     } finally {
       setImporting(false)
     }
@@ -138,7 +139,7 @@ export default function ImportAgentsDialog() {
         <div className="import-dialog-header">
           <div className="import-dialog-title">
             <Download size={24} />
-            <h2>Import Agents from OpenClaw</h2>
+            <h2>{t('agent_management.import_dialog.title')}</h2>
           </div>
           <button className="import-dialog-close" onClick={closeImportDialog}>
             ×
@@ -149,27 +150,28 @@ export default function ImportAgentsDialog() {
           {loading && (
             <div className="import-loading">
               <Bot size={32} />
-              <p>Loading agents from OpenClaw config...</p>
+              <p>{t('agent_management.import_dialog.loading')}</p>
             </div>
           )}
 
           {!loading && openClawAgents.length === 0 && (
             <div className="import-empty">
               <AlertCircle size={32} />
-              <h3>No OpenClaw Config Found</h3>
-              <p>Make sure OpenClaw is configured with agents in ~/.openclaw/openclaw.json</p>
+              <h3>{t('agent_management.import_dialog.empty_title')}</h3>
+              <p>{t('agent_management.import_dialog.empty_hint')}</p>
             </div>
           )}
 
           {!loading && openClawAgents.length > 0 && !importResult && (
             <>
               <div className="import-summary">
-                <p>
-                  Found <strong>{openClawAgents.length}</strong> agents in OpenClaw config.
-                  <br />
-                  <strong>{importCandidates.length}</strong> can be imported,
-                  <strong>{alreadyExists.length}</strong> already exist.
-                </p>
+                <p dangerouslySetInnerHTML={{
+                  __html: t('agent_management.import_dialog.summary', {
+                    total: openClawAgents.length,
+                    candidates: importCandidates.length,
+                    existing: alreadyExists.length
+                  })
+                }} />
 
                 {importCandidates.length > 0 && (
                   <div className="import-controls">
@@ -178,10 +180,15 @@ export default function ImportAgentsDialog() {
                       onClick={handleSelectAll}
                       disabled={importing}
                     >
-                      {selectedAgents.size === importCandidates.length ? 'Deselect All' : 'Select All'}
+                      {selectedAgents.size === importCandidates.length
+                        ? t('agent_management.import_dialog.deselect_all')
+                        : t('agent_management.import_dialog.select_all')}
                     </button>
                     <span className="selection-count">
-                      {selectedAgents.size} of {importCandidates.length} selected
+                      {t('agent_management.import_dialog.selection_count', {
+                        selected: selectedAgents.size,
+                        total: importCandidates.length
+                      })}
                     </span>
                   </div>
                 )}
@@ -215,27 +222,27 @@ export default function ImportAgentsDialog() {
             <div className="import-result">
               <div className="import-result-header">
                 <CheckSquare size={24} className="success-icon" />
-                <h3>Import Complete!</h3>
+                <h3>{t('agent_management.import_dialog.result_success')}</h3>
               </div>
 
               <div className="import-result-summary">
                 <div className="result-stat">
                   <span className="result-number">{importResult.imported_count}</span>
-                  <span className="result-label">Imported</span>
+                  <span className="result-label">{t('agent_management.import_dialog.imported')}</span>
                 </div>
                 <div className="result-stat">
                   <span className="result-number">{importResult.skipped_count}</span>
-                  <span className="result-label">Skipped</span>
+                  <span className="result-label">{t('agent_management.import_dialog.skipped')}</span>
                 </div>
               </div>
 
               {importResult.imported.length > 0 && (
                 <div className="imported-agents">
-                  <h4>Successfully Imported:</h4>
+                  <h4>{t('agent_management.import_dialog.success_list_title')}</h4>
                   <ul>
                     {importResult.imported.map(agent => (
                       <li key={agent.id}>
-                        <strong>{agent.name}</strong> (@{agent.id}) - {agent.status}
+                        <strong>{agent.name}</strong> (@{agent.id}) - {t(`agent_management.status.${agent.status.toLowerCase()}`, { defaultValue: agent.status })}
                       </li>
                     ))}
                   </ul>
@@ -244,7 +251,7 @@ export default function ImportAgentsDialog() {
 
               {importResult.skipped.length > 0 && (
                 <div className="skipped-agents">
-                  <h4>Skipped:</h4>
+                  <h4>{t('agent_management.import_dialog.skipped_list_title')}</h4>
                   <ul>
                     {importResult.skipped.map(item => (
                       <li key={item.id}>
@@ -268,12 +275,14 @@ export default function ImportAgentsDialog() {
               {importing ? (
                 <>
                   <Bot size={16} className="spin" />
-                  Importing...
+                  {t('agent_management.import_dialog.importing')}
                 </>
               ) : (
                 <>
                   <Download size={16} />
-                  Import {selectedAgents.size} Agent{selectedAgents.size !== 1 ? 's' : ''}
+                  {selectedAgents.size === 1
+                    ? t('agent_management.import_dialog.import_button_one', { count: selectedAgents.size })
+                    : t('agent_management.import_dialog.import_button', { count: selectedAgents.size })}
                 </>
               )}
             </button>
@@ -281,12 +290,12 @@ export default function ImportAgentsDialog() {
 
           {importResult && (
             <button className="close-button" onClick={closeImportDialog}>
-              Close
+              {t('agent_management.import_dialog.close')}
             </button>
           )}
 
           <button className="cancel-button" onClick={closeImportDialog}>
-            {importResult ? 'Close' : 'Cancel'}
+            {importResult ? t('agent_management.import_dialog.close') : t('agent_management.import_dialog.cancel')}
           </button>
         </div>
       </div>

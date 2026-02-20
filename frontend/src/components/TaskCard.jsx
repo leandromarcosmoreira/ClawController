@@ -1,7 +1,7 @@
 import { Clock, AlarmClock, GripVertical, Calendar } from 'lucide-react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { useMissionStore, priorityColors } from '../store/useMissionStore'
+import { useMissionStore } from '../store/useMissionStore'
 import { format, isPast, isToday, isTomorrow } from 'date-fns'
 import { useTranslation } from 'react-i18next'
 
@@ -35,7 +35,7 @@ function TaskCardContent({ task, isDragging = false, showHandle = true, onHandle
   const dueLabel = formatDueDate(task.dueAt, t)
   const overdue = isOverdue(task.dueAt, task.status)
 
-  const handleClick = (e) => {
+  const handleClick = () => {
     if (!isDragging) {
       selectTask(task.id)
     }

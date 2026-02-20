@@ -35,8 +35,7 @@ sleep 1
 # Start backend
 echo "Starting backend..."
 cd "$BACKEND_DIR"
-source venv/bin/activate
-nohup python -m uvicorn main:app --host 0.0.0.0 --port 8000 > "$LOGS_DIR/backend.log" 2>&1 &
+nohup cargo run --release > "$LOGS_DIR/backend.log" 2>&1 &
 BACKEND_PID=$!
 echo "  Backend PID: $BACKEND_PID"
 

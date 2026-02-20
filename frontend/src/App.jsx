@@ -16,7 +16,7 @@ import { useMissionStore } from './store/useMissionStore'
 
 function LoadingScreen() {
   const { t } = useTranslation()
-  
+
   return (
     <div className="loading-screen">
       <div className="loading-content">
@@ -30,7 +30,7 @@ function LoadingScreen() {
 
 function ErrorScreen({ error, onRetry }) {
   const { t } = useTranslation()
-  
+
   return (
     <div className="error-screen">
       <div className="error-content">
@@ -56,20 +56,20 @@ function App() {
   const isLoading = useMissionStore((state) => state.isLoading)
   const isInitialized = useMissionStore((state) => state.isInitialized)
   const error = useMissionStore((state) => state.error)
-  const wsConnected = useMissionStore((state) => state.wsConnected)
+
 
   useEffect(() => {
     // Initialize data on mount
     initialize()
-    
+
     // Connect WebSocket
     connectWebSocket()
-    
+
     // Refresh agent status every 30 seconds for real-time updates
     const agentRefreshInterval = setInterval(() => {
       refreshAgents()
     }, 30000)
-    
+
     // Cleanup on unmount
     return () => {
       disconnectWebSocket()

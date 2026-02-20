@@ -43,6 +43,7 @@ function Sparkline({ data, width = 80, height = 24 }) {
 
 // Notifications Dropdown
 function NotificationsDropdown() {
+  const { t } = useTranslation()
   const agents = useMissionStore((state) => state.agents)
   const getMyNotifications = useMissionStore((state) => state.getMyNotifications)
   const markAllNotificationsRead = useMissionStore((state) => state.markAllNotificationsRead)
@@ -96,7 +97,7 @@ function NotificationsDropdown() {
                 </div>
                 <div className="notification-content">
                   <div className="notification-title">
-                    <strong>{fromAgent?.name}</strong> mentioned you
+                    <strong>{fromAgent?.name}</strong> {t('header.notifications.mentioned_you')}
                   </div>
                   <div className="notification-text">{notif.text}</div>
                   <div className="notification-time">
@@ -115,6 +116,7 @@ function NotificationsDropdown() {
 
 // System Status Dropdown
 function SystemStatusDropdown({ onClose }) {
+  const { t } = useTranslation()
   const agents = useMissionStore((state) => state.agents)
   const wsConnected = useMissionStore((state) => state.wsConnected)
   const useOpenClaw = useMissionStore((state) => state.useOpenClaw)
@@ -338,13 +340,13 @@ export default function Header() {
                 </div>
               </div>
               <div className="stats-trend-section">
-                <span className="stats-trend-label">7-Day Trend</span>
+                <span className="stats-trend-label">{t('header.stats.7day_trend')}</span>
                 <Sparkline data={stats.weekData} />
                 <span className={`stats-trend-value ${stats.trend > 0 ? 'positive' : stats.trend < 0 ? 'negative' : ''}`}>
                   {stats.trend > 0 ? '↑' : stats.trend < 0 ? '↓' : '→'}
-                  {stats.trend > 0 ? `${stats.trend} more than yesterday` :
-                    stats.trend < 0 ? `${Math.abs(stats.trend)} less than yesterday` :
-                      'Same as yesterday'}
+                  {stats.trend > 0 ? t('header.stats.more_than_yesterday', { count: stats.trend }) :
+                    stats.trend < 0 ? t('header.stats.less_than_yesterday', { count: Math.abs(stats.trend) }) :
+                      t('header.stats.same_as_yesterday')}
                 </span>
               </div>
             </div>

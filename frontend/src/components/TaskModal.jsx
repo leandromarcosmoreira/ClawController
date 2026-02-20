@@ -1,9 +1,9 @@
 import { X, ChevronRight, ChevronLeft, Check, MessageSquare, User, Calendar, Paperclip, FileText, Download, Trash2, Activity } from 'lucide-react'
 import { useState, useRef, useEffect, useMemo } from 'react'
-import { useMissionStore, priorityColors, statusColors, statusOrder } from '../store/useMissionStore'
+import { useMissionStore, statusColors, statusOrder } from '../store/useMissionStore'
 import MentionText from './MentionText'
 import DatePicker from 'react-datepicker'
-import { format, isPast, isToday, formatDistanceToNow } from 'date-fns'
+import { format, isPast, isToday } from 'date-fns'
 import { fetchTaskActivity, addTaskActivity, sendChatMessageToAgent } from '../api'
 import { useTranslation } from 'react-i18next'
 import 'react-datepicker/dist/react-datepicker.css'
@@ -105,7 +105,7 @@ export default function TaskModal() {
   const moveTaskForward = useMissionStore((state) => state.moveTaskForward)
   const sendTaskBack = useMissionStore((state) => state.sendTaskBack)
   const approveTask = useMissionStore((state) => state.approveTask)
-  const setReviewer = useMissionStore((state) => state.setReviewer)
+  // const setReviewer = useMissionStore((state) => state.setReviewer) // unused
   const updateTaskDueDate = useMissionStore((state) => state.updateTaskDueDate)
   const toggleChecklistItem = useMissionStore((state) => state.toggleChecklistItem)
   const addDeliverable = useMissionStore((state) => state.addDeliverable)
@@ -300,7 +300,8 @@ export default function TaskModal() {
 
       // Optimistically add user comment to activity log immediately
       const optimisticEntry = {
-        id: `temp-${Date.now()}`,
+        // eslint-disable-next-line react-hooks/purity
+        id: `temp-${Math.random().toString(36).substr(2, 9)}`,
         agent_id: 'user',
         agent: { id: 'user', name: 'Usuário', avatar: '👤' },
         message: commentText,

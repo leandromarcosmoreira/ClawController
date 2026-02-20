@@ -20,7 +20,7 @@ export const usePortuguese = () => {
   const { i18n } = useTranslation()
   
   // Forçar português como padrão em ambiente de desenvolvimento
-  if (process.env.NODE_ENV !== 'production') {
+  if (import.meta.env.MODE !== 'production') {
     i18n.changeLanguage('pt')
   }
   

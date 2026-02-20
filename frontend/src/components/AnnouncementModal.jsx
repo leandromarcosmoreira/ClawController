@@ -27,7 +27,7 @@ export default function AnnouncementModal() {
       setTitle('')
       setMessage('')
       setPriority('Normal')
-    } catch (err) {
+    } catch {
       setError('Failed to broadcast announcement')
     } finally {
       setIsSubmitting(false)

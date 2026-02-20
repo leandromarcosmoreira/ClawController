@@ -4336,14 +4336,14 @@
 
 /* Agent Sidebar Empty State */
 .empty-state {
-  padding: 32px 20px;
+  padding: 48px 24px;
   text-align: center;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 32px;
   background: var(--bg-secondary);
   margin: 16px;
-  border-radius: 16px;
+  border-radius: 20px;
   border: 1px solid var(--border);
 }
 
@@ -4371,16 +4371,17 @@
   background: var(--accent);
   color: white;
   border: none;
-  padding: 12px 20px;
-  border-radius: 8px;
-  font-weight: 600;
+  padding: 16px 24px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 15px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 12px;
   transition: all 0.2s;
-  box-shadow: 0 0 20px var(--accent-glow);
+  box-shadow: 0 0 25px var(--accent-glow);
 }
 
 .empty-state-button:hover {

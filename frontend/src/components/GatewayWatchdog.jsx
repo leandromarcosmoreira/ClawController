@@ -9,7 +9,7 @@ export default function GatewayWatchdog() {
   const navigate = useNavigate()
   const [isOpen, setIsOpen] = useState(false)
   const [watchdogStatus, setWatchdogStatus] = useState(null)
-  const [loading, setLoading] = useState(false)
+
 
   // Auto-refresh watchdog status every 30 seconds
   useEffect(() => {
@@ -21,10 +21,10 @@ export default function GatewayWatchdog() {
         console.error('Failed to fetch gateway watchdog status:', error)
       }
     }
-    
+
     fetchStatus()
     const interval = setInterval(fetchStatus, 30 * 1000) // 30 seconds
-    
+
     return () => clearInterval(interval)
   }, [])
 
@@ -59,7 +59,7 @@ export default function GatewayWatchdog() {
     <>
       {/* Gateway Status Widget */}
       <div className={`gateway-widget ${hasIssues ? 'has-issues' : ''}`}>
-        <button 
+        <button
           className="widget-toggle"
           onClick={() => setIsOpen(!isOpen)}
           title="Gateway Watchdog"
@@ -86,20 +86,20 @@ export default function GatewayWatchdog() {
             {watchdogStatus && (
               <div className="gateway-summary">
                 <div className="gateway-status-indicator">
-                  <span 
+                  <span
                     className="status-icon"
                     style={{ color: getHealthStatusColor(watchdogStatus.health_status) }}
                   >
                     {getHealthStatusIcon(watchdogStatus.health_status)}
                   </span>
-                  <span 
+                  <span
                     className="status-text"
                     style={{ color: getHealthStatusColor(watchdogStatus.health_status) }}
                   >
                     {watchdogStatus.health_status?.toUpperCase() || 'UNKNOWN'}
                   </span>
                 </div>
-                
+
                 <div className="gateway-quick-stats">
                   <div className="quick-stat">
                     <span className="quick-stat-label">Uptime:</span>
@@ -122,7 +122,7 @@ export default function GatewayWatchdog() {
                 </div>
 
                 <div className="gateway-actions">
-                  <button 
+                  <button
                     className="gateway-detail-btn"
                     onClick={viewFullStatus}
                   >

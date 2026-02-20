@@ -7,7 +7,7 @@ import { useMissionStore } from '../store/useMissionStore'
 import { fetchRecurringTaskRuns } from '../api'
 import { useTranslation } from 'react-i18next'
 
-function RunHistoryItem({ run, agents }) {
+function RunHistoryItem({ run }) {
   const getStatusIcon = () => {
     if (run.status === 'success') {
       return <CheckCircle2 size={14} className="run-status-icon success" />
@@ -58,7 +58,7 @@ function RecurringTaskItem({ task, isSelected, onSelect, agents }) {
   const toggleRecurringTask = useMissionStore((state) => state.toggleRecurringTask)
   const deleteRecurringTask = useMissionStore((state) => state.deleteRecurringTask)
   const triggerRecurringTask = useMissionStore((state) => state.triggerRecurringTask)
-  const selectTask = useMissionStore((state) => state.selectTask)
+  // const selectTask = useMissionStore((state) => state.selectTask) // unused
 
   const [runs, setRuns] = useState([])
   const [loadingRuns, setLoadingRuns] = useState(false)
@@ -66,6 +66,7 @@ function RecurringTaskItem({ task, isSelected, onSelect, agents }) {
 
   useEffect(() => {
     if (isSelected) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoadingRuns(true)
       fetchRecurringTaskRuns(task.id, 10)
         .then(setRuns)
@@ -91,7 +92,7 @@ function RecurringTaskItem({ task, isSelected, onSelect, agents }) {
     setTriggering(true)
     try {
       await triggerRecurringTask(task.id)
-    } catch (error) {
+    } catch {
       alert('Falha ao executar tarefa')
     }
     setTriggering(false)

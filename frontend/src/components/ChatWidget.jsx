@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect, useMemo } from 'react'
 import { MessageCircle, Send, X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useMissionStore } from '../store/useMissionStore'
 import MentionText from './MentionText'
 
 export default function ChatWidget() {
+  const { t } = useTranslation()
   const isChatOpen = useMissionStore((state) => state.isChatOpen)
   const toggleChat = useMissionStore((state) => state.toggleChat)
   const messages = useMissionStore((state) => state.squadMessages)
@@ -12,14 +13,14 @@ export default function ChatWidget() {
   const loadingChat = useMissionStore((state) => state.loadingChat)
   const wsConnected = useMissionStore((state) => state.wsConnected)
   const unreadChatCount = useMissionStore((state) => state.unreadChatCount)
-  
+
   const [inputValue, setInputValue] = useState('')
   const [error, setError] = useState(null)
   const [showMentions, setShowMentions] = useState(false)
   const [mentionFilter, setMentionFilter] = useState('')
   const [mentionIndex, setMentionIndex] = useState(0)
   const [cursorPosition, setCursorPosition] = useState(0)
-  
+
   const messagesEndRef = useRef(null)
   const inputRef = useRef(null)
 
@@ -27,8 +28,8 @@ export default function ChatWidget() {
   const filteredAgents = useMemo(() => {
     if (!mentionFilter) return agents
     const filter = mentionFilter.toLowerCase()
-    return agents.filter(a => 
-      a.name.toLowerCase().includes(filter) || 
+    return agents.filter(a =>
+      a.name.toLowerCase().includes(filter) ||
       a.id.toLowerCase().includes(filter)
     )
   }, [agents, mentionFilter])
@@ -42,21 +43,22 @@ export default function ChatWidget() {
 
   // Reset mention index when filtered list changes
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMentionIndex(0)
   }, [filteredAgents.length])
 
   const handleSend = async () => {
     if (!inputValue.trim() || loadingChat) return
-    
+
     const messageText = inputValue.trim()
     setInputValue('')
     setError(null)
     setShowMentions(false)
-    
+
     try {
       await addChatMessage(messageText)
-    } catch (err) {
-      setError('Failed to send message')
+    } catch {
+      setError(t('chat.failed_to_send'))
       setInputValue(messageText)
     }
   }
@@ -68,13 +70,13 @@ export default function ChatWidget() {
     // Find the @ symbol position before cursor
     const textBeforeCursor = inputValue.slice(0, cursorPosition)
     const atIndex = textBeforeCursor.lastIndexOf('@')
-    
+
     if (atIndex !== -1) {
       const before = inputValue.slice(0, atIndex)
       const after = inputValue.slice(cursorPosition)
       const newValue = `${before}@${agent.name} ${after}`
       setInputValue(newValue)
-      
+
       // Set cursor after the mention
       const newCursorPos = atIndex + agent.name.length + 2
       setTimeout(() => {
@@ -82,7 +84,7 @@ export default function ChatWidget() {
         input.focus()
       }, 0)
     }
-    
+
     setShowMentions(false)
     setMentionFilter('')
   }
@@ -92,11 +94,11 @@ export default function ChatWidget() {
     const cursor = e.target.selectionStart
     setInputValue(value)
     setCursorPosition(cursor)
-    
+
     // Check if we're typing a mention
     const textBeforeCursor = value.slice(0, cursor)
     const atIndex = textBeforeCursor.lastIndexOf('@')
-    
+
     if (atIndex !== -1) {
       const textAfterAt = textBeforeCursor.slice(atIndex + 1)
       // Only show mentions if @ is at start or after a space, and no space after @
@@ -107,7 +109,7 @@ export default function ChatWidget() {
         return
       }
     }
-    
+
     setShowMentions(false)
     setMentionFilter('')
   }
@@ -134,7 +136,7 @@ export default function ChatWidget() {
         return
       }
     }
-    
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSend()
@@ -145,12 +147,12 @@ export default function ChatWidget() {
   const getAgent = (agentId) => {
     // Handle user messages specially
     if (agentId === 'user' || agentId === null || agentId === undefined) {
-      return { id: 'user', name: 'User', avatar: '👤', color: '#6B7280' }
+      return { id: 'user', name: t('chat.user_name'), avatar: '👤', color: '#6B7280' }
     }
     const agent = agents.find((item) => item.id === agentId)
     if (agent) return agent
     if (agentId === 'main') {
-      return { id: 'main', name: 'Main Agent', avatar: '🤖', color: '#E07B3C' }
+      return { id: 'main', name: t('chat.main_agent_name'), avatar: '🤖', color: '#E07B3C' }
     }
     return { id: agentId, name: agentId, avatar: '🤖', color: '#6B7280' }
   }
@@ -163,9 +165,9 @@ export default function ChatWidget() {
           <div className="chat-panel-title">
             <MessageCircle size={18} />
             <div>
-              <h4>Agent Chat</h4>
+              <h4>{t('chat.agent_chat')}</h4>
               <span>
-                {wsConnected ? 'Type @ to mention agents' : 'Connecting...'}
+                {wsConnected ? t('chat.type_to_mention') : t('chat.connecting')}
               </span>
             </div>
           </div>
@@ -173,13 +175,13 @@ export default function ChatWidget() {
             <X size={18} />
           </button>
         </div>
-        
+
         <div className="chat-messages-container">
           {messages.length === 0 ? (
             <div className="chat-empty">
               <MessageCircle size={32} style={{ opacity: 0.3 }} />
-              <p>No messages yet</p>
-              <span>Start the conversation!</span>
+              <p>{t('chat.no_messages')}</p>
+              <span>{t('chat.start_conversation')}</span>
             </div>
           ) : (
             messages.map((message) => {
@@ -212,18 +214,18 @@ export default function ChatWidget() {
           )}
           <div ref={messagesEndRef} />
         </div>
-        
+
         {error && (
-          <div className="chat-error" style={{ 
-            padding: '8px 16px', 
-            background: 'rgba(220, 38, 38, 0.1)', 
+          <div className="chat-error" style={{
+            padding: '8px 16px',
+            background: 'rgba(220, 38, 38, 0.1)',
             color: '#dc2626',
-            fontSize: 12 
+            fontSize: 12
           }}>
             {error}
           </div>
         )}
-        
+
         <div className="chat-input-wrapper">
           {/* Mention autocomplete dropdown */}
           {showMentions && filteredAgents.length > 0 && (
@@ -236,8 +238,8 @@ export default function ChatWidget() {
                   onClick={() => insertMention(agent)}
                   onMouseEnter={() => setMentionIndex(index)}
                 >
-                  <span 
-                    className="mention-avatar" 
+                  <span
+                    className="mention-avatar"
                     style={{ backgroundColor: agent.color }}
                   >
                     {agent.avatar}
@@ -247,23 +249,23 @@ export default function ChatWidget() {
                 </button>
               ))}
               <div className="mention-hint">
-                <kbd>↑↓</kbd> navigate <kbd>Tab</kbd> select <kbd>Esc</kbd> close
+                <kbd>↑↓</kbd> {t('chat.mention_hint.navigate')} <kbd>Tab</kbd> {t('chat.mention_hint.select')} <kbd>Esc</kbd> {t('chat.mention_hint.close')}
               </div>
             </div>
           )}
-          
+
           <div className="chat-input-container">
-            <input 
+            <input
               ref={inputRef}
-              type="text" 
-              placeholder={loadingChat ? 'Sending...' : 'Message or @mention an agent...'} 
+              type="text"
+              placeholder={loadingChat ? t('chat.sending') : t('chat.placeholder_mention')}
               value={inputValue}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               disabled={loadingChat}
             />
-            <button 
-              type="button" 
+            <button
+              type="button"
               className={`chat-send-button ${loadingChat ? 'button-loading' : ''}`}
               onClick={handleSend}
               disabled={!inputValue.trim() || loadingChat}
@@ -273,15 +275,15 @@ export default function ChatWidget() {
           </div>
         </div>
       </div>
-      
+
       {/* Floating toggle button */}
-      <button 
-        className={`chat-fab ${isChatOpen ? 'hidden' : ''}`} 
-        type="button" 
+      <button
+        className={`chat-fab ${isChatOpen ? 'hidden' : ''}`}
+        type="button"
         onClick={toggleChat}
       >
         <MessageCircle size={20} />
-        <span>Agent Chat</span>
+        <span>{t('chat.agent_chat')}</span>
         {unreadChatCount > 0 && (
           <span className="chat-badge">{unreadChatCount}</span>
         )}

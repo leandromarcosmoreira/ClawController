@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMissionStore } from '../store/useMissionStore'
 
@@ -85,28 +85,17 @@ export default function AddAgentWizard({ mode }) {
   const [originalDescription, setOriginalDescription] = useState('')
 
   // Agent config fields
-  const [agentId, setAgentId] = useState('')
-  const [agentName, setAgentName] = useState('')
-  const [agentEmoji, setAgentEmoji] = useState('🤖')
-  const [agentModel, setAgentModel] = useState('')
-  const [soulMd, setSoulMd] = useState('')
-  const [toolsMd, setToolsMd] = useState('')
-  const [agentsMd, setAgentsMd] = useState('')
+  const [agentId, setAgentId] = useState(mode === 'orchestrator' ? ORCHESTRATOR_CONFIG.id : '')
+  const [agentName, setAgentName] = useState(mode === 'orchestrator' ? ORCHESTRATOR_CONFIG.name : '')
+  const [agentEmoji, setAgentEmoji] = useState(mode === 'orchestrator' ? ORCHESTRATOR_CONFIG.emoji : '🤖')
+  const [agentModel, setAgentModel] = useState(mode === 'orchestrator' ? ORCHESTRATOR_CONFIG.model : '')
+  const [soulMd, setSoulMd] = useState(mode === 'orchestrator' ? ORCHESTRATOR_CONFIG.soul : '')
+  const [toolsMd, setToolsMd] = useState(mode === 'orchestrator' ? ORCHESTRATOR_CONFIG.tools : '')
+  const [agentsMd, setAgentsMd] = useState(mode === 'orchestrator' ? ORCHESTRATOR_CONFIG.agentsMd : '')
 
   const [error, setError] = useState('')
 
-  // Initialize with orchestrator config if in orchestrator mode
-  useEffect(() => {
-    if (mode === 'orchestrator') {
-      setAgentId(ORCHESTRATOR_CONFIG.id)
-      setAgentName(ORCHESTRATOR_CONFIG.name)
-      setAgentEmoji(ORCHESTRATOR_CONFIG.emoji)
-      setAgentModel(ORCHESTRATOR_CONFIG.model)
-      setSoulMd(ORCHESTRATOR_CONFIG.soul)
-      setToolsMd(ORCHESTRATOR_CONFIG.tools)
-      setAgentsMd(ORCHESTRATOR_CONFIG.agentsMd)
-    }
-  }, [mode])
+
 
   const handleGenerate = async () => {
     if (!description.trim()) {
@@ -128,7 +117,7 @@ export default function AddAgentWizard({ mode }) {
       setToolsMd(config.tools || '')
       setAgentsMd(config.agentsMd || '')
       setStep(STEPS.REVIEW)
-    } catch (err) {
+    } catch {
       setError(t('agent_management.generate_config_error'))
       setStep(STEPS.DESCRIBE)
     }

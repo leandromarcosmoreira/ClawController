@@ -26,7 +26,7 @@ i18n
     resources,
     fallbackLng: 'pt',
     lng: 'pt',
-    debug: process.env.NODE_ENV === 'development',
+    debug: import.meta.env.DEV,
     
     interpolation: {
       escapeValue: false

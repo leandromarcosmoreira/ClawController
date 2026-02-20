@@ -4,7 +4,7 @@ import { ArrowLeft, RefreshCw, AlertTriangle, CheckCircle, Clock, Activity, Serv
 import { useTranslation } from 'react-i18next'
 import { api } from '../api'
 import { useMissionStore } from '../store/useMissionStore'
-import { formatTimeAgo, formatDuration, formatUptime } from '../utils/time'
+import { formatTimeAgo, formatDuration } from '../utils/time'
 import './StatusPage.css'
 
 export default function StatusPage() {
@@ -61,14 +61,14 @@ export default function StatusPage() {
   }
 
   const restartGateway = async () => {
-    if (window.confirm('Restart the OpenClaw gateway? This may cause brief downtime.')) {
+    if (window.confirm(t('status.restart_confirm'))) {
       try {
         const result = await api.post('/api/monitoring/gateway/restart')
-        alert(result.success ? '✅ Gateway restart initiated' : '❌ Restart failed: ' + result.message)
+        alert(result.success ? t('status.restart_initiated') : t('status.restart_failed', { message: result.message }))
         await fetchAllStatus()
       } catch (error) {
         console.error('Restart failed:', error)
-        alert('❌ Restart request failed')
+        alert(t('status.restart_request_failed'))
       }
     }
   }
@@ -135,13 +135,13 @@ export default function StatusPage() {
         <div className="status-header">
           <button className="back-button" onClick={() => navigate('/')}>
             <ArrowLeft size={16} />
-            Voltar ao Dashboard
+            {t('status.back_to_dashboard')}
           </button>
-          <h1>Status do Sistema</h1>
+          <h1>{t('status.title')}</h1>
         </div>
         <div className="status-loading">
           <div className="loading-spinner" />
-          <p>Carregando status do sistema...</p>
+          <p>{t('status.loading')}</p>
         </div>
       </div>
     )
@@ -152,16 +152,16 @@ export default function StatusPage() {
       <div className="status-header">
         <button className="back-button" onClick={() => navigate('/')}>
           <ArrowLeft size={16} />
-          Back to Dashboard
+          {t('status.back_to_dashboard')}
         </button>
-        <h1>System Status</h1>
+        <h1>{t('status.title')}</h1>
         <div className="status-actions">
           <button className="refresh-button" onClick={fetchAllStatus} disabled={loading}>
             <RefreshCw size={16} className={loading ? 'spinning' : ''} />
-            Atualizar
+            {t('status.refresh')}
           </button>
           <span className="last-refresh">
-            Última atualização: {formatTimeAgo(lastRefresh)}
+            {t('status.last_refresh', { time: formatTimeAgo(lastRefresh, t) })}
           </span>
         </div>
       </div>
@@ -172,14 +172,14 @@ export default function StatusPage() {
           {healthIcons[overallHealth]}
           <div className="health-text">
             <h2 style={{ color: healthColors[overallHealth] }}>
-              {overallHealth === 'healthy' ? 'Sistema Saudável' :
-                overallHealth === 'warning' ? 'Problemas Detectados' :
-                  'Problemas Críticos Detectados'}
+              {overallHealth === 'healthy' ? t('status.health.healthy_title') :
+                overallHealth === 'warning' ? t('status.health.warning_title') :
+                  t('status.health.critical_title')}
             </h2>
             <p>
-              {overallHealth === 'healthy' ? 'Todos os sistemas operando normalmente' :
-                overallHealth === 'warning' ? 'Alguns componentes precisam de atenção' :
-                  'Componentes críticos precisam de atenção imediata'}
+              {overallHealth === 'healthy' ? t('status.health.healthy_desc') :
+                overallHealth === 'warning' ? t('status.health.warning_desc') :
+                  t('status.health.critical_desc')}
             </p>
           </div>
         </div>
@@ -208,9 +208,9 @@ export default function StatusPage() {
               <h3>Gateway OpenClaw</h3>
             </div>
             <div className={`status-badge status-badge--${gatewayStatus?.health_status === 'healthy' ? 'healthy' : 'error'}`}>
-              {gatewayStatus?.health_status === 'healthy' ? '✅ Saudável' :
-                gatewayStatus?.health_status === 'crashed' ? '🔴 Falhou' :
-                  '⚠️ Desconhecido'}
+              {gatewayStatus?.health_status === 'healthy' ? t('status.health.healthy_badge') :
+                gatewayStatus?.health_status === 'crashed' ? t('status.health.failed_badge') :
+                  t('status.health.unknown_badge')}
             </div>
           </div>
 
@@ -246,11 +246,11 @@ export default function StatusPage() {
                   <div className="status-actions-row">
                     <button className="action-button" onClick={runHealthCheck}>
                       <Activity size={16} />
-                      Verificação de Saúde
+                      {t('status.health_check')}
                     </button>
                     <button className="action-button action-button--danger" onClick={restartGateway}>
                       <Zap size={16} />
-                      Reiniciar Gateway
+                      {t('status.restart_gateway')}
                     </button>
                   </div>
                 )}
@@ -310,10 +310,10 @@ export default function StatusPage() {
           <div className="status-card-header">
             <div className="status-card-title">
               <Clipboard size={20} />
-              <h3>Visão Geral de Tarefas</h3>
+              <h3>{t('status.task_overview')}</h3>
             </div>
             <div className={`status-badge ${stuckTasks.length > 0 ? 'status-badge--warning' : 'status-badge--healthy'}`}>
-              {activeTasks} Ativas
+              {activeTasks} {t('status.assigned')}
             </div>
           </div>
 
@@ -321,7 +321,7 @@ export default function StatusPage() {
             <div className="task-status-grid">
               <div className="task-status-item">
                 <div className="task-status-count">{assignedTasks}</div>
-                <div className="task-status-label">Atribuídas</div>
+                <div className="task-status-label">{t('status.assigned')}</div>
               </div>
               <div className="task-status-item">
                 <div className="task-status-count">{inProgressTasks}</div>
@@ -329,11 +329,11 @@ export default function StatusPage() {
               </div>
               <div className="task-status-item">
                 <div className="task-status-count">{reviewTasks}</div>
-                <div className="task-status-label">Revisão</div>
+                <div className="task-status-label">{t('status.review')}</div>
               </div>
               <div className="task-status-item">
                 <div className="task-status-count task-status-count--stuck">{stuckTasks.length}</div>
-                <div className="task-status-label">Travadas</div>
+                <div className="task-status-label">{t('status.stuck')}</div>
               </div>
             </div>
           </div>
@@ -344,12 +344,12 @@ export default function StatusPage() {
           <div className="status-card-header">
             <div className="status-card-title">
               <Clock size={20} />
-              <h3>Monitor de Tarefas Travadas</h3>
+              <h3>{t('status.stuck_monitor')}</h3>
             </div>
             <div className="status-actions-header">
               <button className="action-button-small" onClick={runStuckTaskCheck}>
                 <RefreshCw size={14} />
-                Verificar Agora
+                {t('status.check_now')}
               </button>
             </div>
           </div>
@@ -358,23 +358,23 @@ export default function StatusPage() {
             {stuckTaskStatus && (
               <div className="monitor-stats-grid">
                 <div className="monitor-stat">
-                  <span className="monitor-stat-label">Total de Notificações</span>
+                  <span className="monitor-stat-label">{t('status.total_notifications')}</span>
                   <span className="monitor-stat-value">{stuckTaskStatus.total_notifications_sent}</span>
                 </div>
                 <div className="monitor-stat">
-                  <span className="monitor-stat-label">Tarefas Rastreadas</span>
+                  <span className="monitor-stat-label">{t('status.tracked_tasks')}</span>
                   <span className="monitor-stat-value">{stuckTaskStatus.currently_tracked_tasks}</span>
                 </div>
                 <div className="monitor-stat">
-                  <span className="monitor-stat-label">Última Execução</span>
-                  <span className="monitor-stat-value">{formatTimeAgo(stuckTaskStatus.last_run)}</span>
+                  <span className="monitor-stat-label">{t('status.last_run')}</span>
+                  <span className="monitor-stat-value">{formatTimeAgo(stuckTaskStatus.last_run, t)}</span>
                 </div>
               </div>
             )}
 
             {stuckTasks.length > 0 ? (
               <div className="stuck-tasks-list">
-                <h4>🚨 Tarefas Atualmente Travadas ({stuckTasks.length})</h4>
+                <h4>{t('status.stuck_list_title', { count: stuckTasks.length })}</h4>
                 {stuckTasks.map((task) => (
                   <div key={task.task_id} className="stuck-task-item">
                     <div className="stuck-task-header">
@@ -405,7 +405,7 @@ export default function StatusPage() {
             ) : (
               <div className="no-stuck-tasks">
                 <CheckCircle size={24} className="text-green-500" />
-                <p>Nenhuma tarefa travada detectada</p>
+                <p>{t('status.no_stuck_tasks')}</p>
               </div>
             )}
           </div>
@@ -418,14 +418,14 @@ export default function StatusPage() {
           <div className="status-card-header">
             <div className="status-card-title">
               <Activity size={20} />
-              <h3>Configuração de Monitoramento</h3>
+              <h3>{t('status.monitoring_config')}</h3>
             </div>
           </div>
 
           <div className="status-card-content">
             <div className="thresholds-grid">
               <div className="threshold-column">
-                <h4>Limites de Prioridade Normal</h4>
+                <h4>{t('status.normal_priority_limits')}</h4>
                 <div className="threshold-list">
                   {Object.entries(stuckTaskStatus.thresholds.normal).map(([status, hours]) => (
                     <div key={status} className="threshold-item">
@@ -436,7 +436,7 @@ export default function StatusPage() {
                 </div>
               </div>
               <div className="threshold-column">
-                <h4>Limites de Prioridade Urgente</h4>
+                <h4>{t('status.urgent_priority_limits')}</h4>
                 <div className="threshold-list">
                   {Object.entries(stuckTaskStatus.thresholds.urgent).map(([status, hours]) => (
                     <div key={status} className="threshold-item">
@@ -447,22 +447,22 @@ export default function StatusPage() {
                 </div>
               </div>
               <div className="threshold-column">
-                <h4>Cão de Guarda do Gateway</h4>
+                <h4>{t('status.gateway_watchdog')}</h4>
                 <div className="threshold-list">
                   <div className="threshold-item">
-                    <span className="threshold-status">Intervalo de Verificação:</span>
+                    <span className="threshold-status">{t('status.check_interval')}:</span>
                     <span className="threshold-time">{gatewayStatus?.config?.check_interval_seconds}s</span>
                   </div>
                   <div className="threshold-item">
-                    <span className="threshold-status">Timeout de Saúde:</span>
+                    <span className="threshold-status">{t('status.health_timeout')}:</span>
                     <span className="threshold-time">{gatewayStatus?.config?.health_check_timeout}s</span>
                   </div>
                   <div className="threshold-item">
-                    <span className="threshold-status">Máximo de Reinicializações:</span>
+                    <span className="threshold-status">{t('status.max_restarts')}:</span>
                     <span className="threshold-time">{gatewayStatus?.config?.max_restart_attempts}</span>
                   </div>
                   <div className="threshold-item">
-                    <span className="threshold-status">Cooldown de Notificação:</span>
+                    <span className="threshold-status">{t('status.notification_cooldown')}:</span>
                     <span className="threshold-time">{gatewayStatus?.config?.notification_cooldown_minutes}m</span>
                   </div>
                 </div>

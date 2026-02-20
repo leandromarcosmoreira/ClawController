@@ -32,7 +32,10 @@
       "today": "Hoje",
       "yesterday": "Ontem",
       "this_week": "Esta Semana",
-      "7day_trend": "Tendência 7 Dias"
+      "7day_trend": "Tendência 7 Dias",
+      "more_than_yesterday": "{{count}} a mais que ontem",
+      "less_than_yesterday": "{{count}} a menos que ontem",
+      "same_as_yesterday": "Igual a ontem"
     },
     "status_labels": {
       "healthy": "Saudável",
@@ -45,7 +48,8 @@
     "notifications": {
       "title": "Notificações",
       "mark_all_read": "Marcar todas como lidas",
-      "no_notifications": "Nenhuma notificação"
+      "no_notifications": "Nenhuma notificação",
+      "mentioned_you": "mencionou você"
     }
   },
   "agents": {
@@ -72,7 +76,41 @@
       "description": "Descrição",
       "config": "Configuração",
       "save": "Salvar",
-      "cancel": "Cancelar"
+      "cancel": "Cancelar",
+      "edit_title": "Editando Agente: {{name}}",
+      "tabs": {
+        "general": "Geral",
+        "models": "Modelos",
+        "files": "Arquivos"
+      },
+      "delete_confirm": {
+        "title": "Excluir Agente",
+        "message": "Tem certeza que deseja excluir este agente? Esta ação não pode ser desfeita.",
+        "confirm": "Sim, Excluir Agente",
+        "deleting": "Excluindo..."
+      },
+      "saving": "Salvando...",
+      "models": {
+        "loading_status": "Carregando status do modelo...",
+        "current_status": "Status Atual",
+        "using_fallback": "Usando Fallback",
+        "using_primary": "Usando Primário",
+        "failures_detected": "{{count}} falha(s) detectada(s)",
+        "restore_primary": "Restaurar Modelo Primário",
+        "primary_label": "Modelo Primário",
+        "fallback_label": "Modelo de Fallback",
+        "select_primary": "Selecione o modelo primário...",
+        "no_fallback": "Sem modelo de fallback",
+        "primary_hint": "O modelo primário usado para operação normal",
+        "fallback_hint": "Usado automaticamente quando o modelo primário falha",
+        "behavior_title": "Comportamento de Fallback do Modelo",
+        "behavior_list": [
+          "Quando o modelo primário falha, o agente muda automaticamente para o fallback",
+          "O agente permanece no fallback até ser restaurado manualmente",
+          "Você será notificado quando a ativação do fallback ocorrer",
+          "As contagens de falha são rastreadas e redefinidas quando os modelos são alterados"
+        ]
+      }
     },
     "wizard": {
       "create_task": "Criar Tarefa",
@@ -167,14 +205,57 @@
   },
   "chat": {
     "title": "Chat",
+    "agent_chat": "Chat de Agentes",
+    "type_to_mention": "Digite @ para mencionar agentes",
+    "connecting": "Conectando...",
+    "no_messages": "Nenhuma mensagem ainda",
+    "start_conversation": "Comece a conversa!",
     "placeholder": "Digite sua mensagem...",
-    "send": "Enviar"
+    "placeholder_mention": "Mensagem ou @mencione um agente...",
+    "send": "Enviar",
+    "sending": "Enviando...",
+    "failed_to_send": "Falha ao enviar mensagem",
+    "user_name": "Usuário",
+    "main_agent_name": "Agente Principal",
+    "mention_hint": {
+      "navigate": "navegar",
+      "select": "selecionar",
+      "close": "fechar"
+    }
   },
   "status": {
     "title": "Status do Sistema",
+    "back_to_dashboard": "Voltar ao Dashboard",
+    "loading": "Carregando status do sistema...",
+    "refresh": "Atualizar",
+    "last_refresh": "Última atualização: {{time}}",
+    "health": {
+      "healthy_title": "Sistema Saudável",
+      "warning_title": "Problemas Detectados",
+      "critical_title": "Problemas Críticos Detectados",
+      "healthy_desc": "Todos os sistemas operando normalmente",
+      "warning_desc": "Alguns componentes precisam de atenção",
+      "critical_desc": "Componentes críticos precisam de atenção imediata",
+      "healthy_badge": "✅ Saudável",
+      "failed_badge": "🔴 Falhou",
+      "unknown_badge": "⚠️ Desconhecido"
+    },
     "working_agents": "Agentes Trabalhando",
     "active_tasks": "Tarefas Ativas",
     "stuck_tasks": "Tarefas Travadas",
+    "agent_status": "Status dos Agentes",
+    "task_overview": "Visão Geral de Tarefas",
+    "assigned": "Atribuídas",
+    "review": "Revisão",
+    "stuck": "Travadas",
+    "stuck_monitor": "Monitor de Tarefas Travadas",
+    "check_now": "Verificar Agora",
+    "stuck_list_title": "🚨 Tarefas Atualmente Travadas ({{count}})",
+    "no_stuck_tasks": "Nenhuma tarefa travada detectada",
+    "monitoring_config": "Configuração de Monitoramento",
+    "normal_priority_limits": "Limites de Prioridade Normal",
+    "urgent_priority_limits": "Limites de Prioridade Urgente",
+    "gateway_watchdog": "Cão de Guarda do Gateway",
     "current_uptime": "Uptime Atual",
     "total_uptime": "Uptime Total",
     "crash_count": "Qtd de Quedas",
@@ -189,9 +270,24 @@
     "notification_cooldown": "Cooldown de Notificação",
     "run_now": "Executar Agora",
     "run_count": "Qtd de Execuções",
-    "last_run_at": "Última Execução",
     "run_history": "Histórico de Execuções",
+    "uptime_hours": "horas de uptime",
+    "restart_gateway": "Reiniciar Gateway",
+    "health_check": "Verificação de Saúde",
+    "restart_initiated": "✅ Reinicialização do Gateway iniciada",
+    "restart_failed": "❌ Falha ao reiniciar: {{message}}",
+    "restart_request_failed": "❌ Falha no pedido de reinicialização",
+    "restart_confirm": "Reiniciar o gateway OpenClaw? Isso pode causar uma breve interrupção.",
     "create_recurring": "Criar uma tarefa e alternar 'Tornar Recorrente' para configurar tarefas automatizadas"
+  },
+  "time": {
+    "just_now": "Agora mesmo",
+    "never": "Nunca",
+    "seconds_ago": "há {{count}}s",
+    "minutes_ago": "há {{count}}m",
+    "hours_ago": "há {{count}}h",
+    "days_ago": "há {{count}}d",
+    "ago": "atrás"
   },
   "recurring": {
     "title": "Tarefas Recorrentes",
@@ -232,7 +328,9 @@
     "stuck_task_monitor": "Monitor de Tarefas Travadas",
     "last_check": "Última Verificação",
     "or": "ou",
-    "total": "Total"
+    "total": "Total",
+    "expand": "Expandir",
+    "collapse": "Recolher"
   },
   "sidebar": {
     "title": "AGENTES",
@@ -297,6 +395,34 @@
     "example_sales": "Um agente de vendas que lida com qualificação de leads, e-mails de prospecção e gestão de CRM",
     "sales_agent": "Agente de Vendas",
     "example_researcher": "Um agente de pesquisa que investiga tópicos profundamente, sintetiza descobertas e cria relatórios detalhados",
-    "researcher": "Pesquisador"
+    "researcher": "Pesquisador",
+    "import_dialog": {
+      "title": "Importar Agentes do OpenClaw",
+      "loading": "Carregando agentes da configuração do OpenClaw...",
+      "empty_title": "Nenhuma Configuração do OpenClaw Encontrada",
+      "empty_hint": "Certifique-se de que o OpenClaw está configurado com agentes em ~/.openclaw/openclaw.json",
+      "summary": "Encontrados <strong>{{total}}</strong> agentes na configuração do OpenClaw.<br /><strong>{{candidates}}</strong> podem ser importados, <strong>{{existing}}</strong> já existem.",
+      "deselect_all": "Desmarcar Todos",
+      "select_all": "Selecionar Todos",
+      "selection_count": "{{selected}} de {{total}} selecionados",
+      "result_success": "Importação Concluída!",
+      "import_failed": "Falha na importação: {{message}}",
+      "imported": "Importados",
+      "skipped": "Pulados",
+      "success_list_title": "Importados com Sucesso:",
+      "skipped_list_title": "Pulados:",
+      "importing": "Importando...",
+      "import_button": "Importar {{count}} Agentes",
+      "import_button_one": "Importar {{count}} Agente",
+      "close": "Fechar",
+      "cancel": "Cancelar"
+    },
+    "status": {
+      "working": "Trabalhando",
+      "idle": "Inativo",
+      "standby": "Em Espera",
+      "offline": "Offline",
+      "unknown": "Desconhecido"
+    }
   }
 }
