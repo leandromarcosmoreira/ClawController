@@ -57,8 +57,10 @@ function App() {
   const isInitialized = useMissionStore((state) => state.isInitialized)
   const error = useMissionStore((state) => state.error)
 
+  console.log('App: Rendering', { isLoading, isInitialized, error })
 
   useEffect(() => {
+    console.log('App: Mounted')
     // Initialize data on mount
     initialize()
 

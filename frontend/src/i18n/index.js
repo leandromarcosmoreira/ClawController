@@ -38,6 +38,10 @@ i18n
       // Force Portuguese as default
       lookupLocalStorage: 'i18nextLng',
       checkWhitelist: true
+    },
+    
+    react: {
+      useSuspense: false
     }
   });
 
