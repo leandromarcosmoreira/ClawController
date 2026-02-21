@@ -642,12 +642,74 @@ async fn check_openclaw_status() -> impl IntoResponse {
     }))
 }
 
-async fn fetch_openclaw_agents() -> impl IntoResponse {
-    Json(serde_json::json!([]))
+async fn fetch_openclaw_agents() -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let client = reqwest::Client::new();
+    let host = std::env::var("GATEWAY_HOST").unwrap_or_else(|_| "localhost".to_string());
+    // Assuming gateway runs on 19001
+    let url = format!("http://{}:19001/api/agents", host);
+
+    tracing::info!("Fetching agents from Openclaw Gateway: {}", url);
+
+    let res = client
+        .get(&url)
+        .header("Authorization", format!("Bearer {}", std::env::var("OPENCLAW_TOKEN").unwrap_or_default()))
+        .send()
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to fetch OpenClaw agents: {}", e);
+            (StatusCode::SERVICE_UNAVAILABLE, format!("Could not reach Openclaw Gateway at {}: {:?}", url, e))
+        })?;
+
+    if !res.status().is_success() {
+        let status = res.status();
+        let body = res.text().await.unwrap_or_default();
+        tracing::error!("Openclaw Gateway returned error: {} - {}", status, body);
+        return Err((StatusCode::BAD_GATEWAY, format!("Gateway returned {}: {}", status, body)));
+    }
+
+    let agents: serde_json::Value = res.json().await.map_err(|e| {
+        tracing::error!("Failed to parse Openclaw agents response: {}", e);
+        (StatusCode::INTERNAL_SERVER_ERROR, "Invalid response from Gateway".to_string())
+    })?;
+
+    Ok(Json(agents))
 }
 
-async fn import_openclaw_agents() -> impl IntoResponse {
-    Json(serde_json::json!({ "status": "success", "imported": 0 }))
+async fn import_openclaw_agents(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    // 1. Fetch from OpenClaw
+    let gateway_agents = fetch_openclaw_agents().await?.0;
+    
+    // 2. Iterate and upsert into local DB
+    let mut imported = 0;
+    
+    if let Some(agents_array) = gateway_agents.get("data").and_then(|v| v.as_array()) {
+        for agent in agents_array {
+            if let Some(id) = agent.get("id").and_then(|i| i.as_str()) {
+                let name = agent.get("identity").and_then(|i| i.get("name")).and_then(|n| n.as_str()).unwrap_or(id);
+                let workspace = agent.get("workspace").and_then(|w| w.as_str());
+                let role = agent.get("role").and_then(|r| r.as_str()).unwrap_or("SPC");
+                
+                // Keep it simple: insert or update
+                sqlx::query("INSERT INTO agents (id, name, role, workspace, status, created_at) VALUES (?, ?, ?, ?, 'IDLE', CURRENT_TIMESTAMP) ON CONFLICT(id) DO UPDATE SET name = excluded.name, role = excluded.role, workspace = excluded.workspace, status = 'IDLE'")
+                    .bind(id)
+                    .bind(name)
+                    .bind(role.to_uppercase())
+                    .bind(workspace)
+                    .execute(&state.pool)
+                    .await
+                    .map_err(|e| {
+                        tracing::error!("DB error importing agent {}: {}", id, e);
+                        (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
+                    })?;
+                    
+                imported += 1;
+            }
+        }
+    }
+
+    Ok(Json(serde_json::json!({ "status": "success", "imported": imported })))
 }
 
 async fn get_chat_messages() -> impl IntoResponse {

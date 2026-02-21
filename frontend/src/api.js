@@ -36,7 +36,24 @@ export async function updateAgentStatus(agentId, status) {
 
 // ============ OpenClaw Integration ============
 export async function fetchOpenClawAgents() {
-  return fetchAPI('/api/openclaw/agents')
+  try {
+    const result = await fetchAPI('/api/openclaw/agents')
+    if (result && result.data && Array.isArray(result.data)) {
+      return result.data.map(agent => ({
+        id: agent.id,
+        name: agent.identity?.name || agent.name || agent.id,
+        role: agent.role || 'SPC',
+        status: agent.status || 'IDLE',
+        avatar: agent.identity?.avatar || '🤖',
+        description: agent.identity?.vibe || agent.description || '',
+        workspace: agent.workspace,
+      }))
+    }
+    return Array.isArray(result) ? result : []
+  } catch (error) {
+    console.error('Error fetching OpenClaw agents:', error)
+    return []
+  }
 }
 
 export async function checkOpenClawStatus() {
