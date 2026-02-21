@@ -635,44 +635,61 @@ async fn create_recurring_task(
 }
 
 async fn check_openclaw_status() -> impl IntoResponse {
+    // Verifica se o arquivo de configuração do openclaw está acessível
+    let openclaw_dir = std::env::var("OPENCLAW_STATE_DIR")
+        .or_else(|_| std::env::var("HOME").map(|h| format!("{}/.openclaw", h)))
+        .unwrap_or_else(|_| "/root/.openclaw".to_string());
+    let config_path = format!("{}/openclaw.json", openclaw_dir);
+    let available = tokio::fs::metadata(&config_path).await.is_ok();
     Json(serde_json::json!({ 
-        "available": true,
-        "status": "ok", 
-        "version": "mock" 
+        "available": available,
+        "status": if available { "ok" } else { "unavailable" }, 
+        "config_path": config_path
     }))
 }
 
 async fn fetch_openclaw_agents() -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    let client = reqwest::Client::new();
-    let host = std::env::var("GATEWAY_HOST").unwrap_or_else(|_| "localhost".to_string());
-    // Assuming gateway runs on 19001
-    let url = format!("http://{}:19001/api/agents", host);
+    // Lê os agentes diretamente do arquivo openclaw.json montado via volume compartilhado
+    let openclaw_dir = std::env::var("OPENCLAW_STATE_DIR")
+        .or_else(|_| std::env::var("HOME").map(|h| format!("{}/.openclaw", h)))
+        .unwrap_or_else(|_| "/root/.openclaw".to_string());
+    let config_path = format!("{}/openclaw.json", openclaw_dir);
 
-    tracing::info!("Fetching agents from Openclaw Gateway: {}", url);
+    tracing::info!("Reading Openclaw config from: {}", config_path);
 
-    let res = client
-        .get(&url)
-        .header("Authorization", format!("Bearer {}", std::env::var("OPENCLAW_TOKEN").unwrap_or_default()))
-        .send()
-        .await
-        .map_err(|e| {
-            tracing::error!("Failed to fetch OpenClaw agents: {}", e);
-            (StatusCode::SERVICE_UNAVAILABLE, format!("Could not reach Openclaw Gateway at {}: {:?}", url, e))
-        })?;
-
-    if !res.status().is_success() {
-        let status = res.status();
-        let body = res.text().await.unwrap_or_default();
-        tracing::error!("Openclaw Gateway returned error: {} - {}", status, body);
-        return Err((StatusCode::BAD_GATEWAY, format!("Gateway returned {}: {}", status, body)));
-    }
-
-    let agents: serde_json::Value = res.json().await.map_err(|e| {
-        tracing::error!("Failed to parse Openclaw agents response: {}", e);
-        (StatusCode::INTERNAL_SERVER_ERROR, "Invalid response from Gateway".to_string())
+    let content = tokio::fs::read_to_string(&config_path).await.map_err(|e| {
+        tracing::error!("Failed to read openclaw.json at {}: {}", config_path, e);
+        (StatusCode::SERVICE_UNAVAILABLE, format!("Cannot read openclaw config at {}: {}", config_path, e))
     })?;
 
-    Ok(Json(agents))
+    let config: serde_json::Value = serde_json::from_str(&content).map_err(|e| {
+        tracing::error!("Failed to parse openclaw.json: {}", e);
+        (StatusCode::INTERNAL_SERVER_ERROR, format!("Invalid openclaw.json: {}", e))
+    })?;
+
+    // Extrai a lista de agentes da configuração
+    let agent_list = config.get("agents")
+        .and_then(|a| a.get("list"))
+        .and_then(|l| l.as_array())
+        .cloned()
+        .unwrap_or_default();
+
+    // Transforma no formato esperado pelo frontend
+    let agents: Vec<serde_json::Value> = agent_list.iter().map(|entry| {
+        let id = entry.get("id").and_then(|v| v.as_str()).unwrap_or("unknown");
+        let name = entry.get("name").and_then(|v| v.as_str()).unwrap_or(id);
+        let workspace = entry.get("workspace").and_then(|v| v.as_str());
+        serde_json::json!({
+            "id": id,
+            "name": name,
+            "role": "SPC",
+            "status": "IDLE",
+            "workspace": workspace,
+            "identity": { "name": name }
+        })
+    }).collect();
+
+    Ok(Json(serde_json::json!({ "data": agents })))
 }
 
 async fn import_openclaw_agents(
