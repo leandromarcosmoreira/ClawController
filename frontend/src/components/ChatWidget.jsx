@@ -1,6 +1,5 @@
-```
 import { MessageCircle, Send, X } from 'lucide-react'
-import { useRef, useLayoutEffect, useState, useEffect } from 'react'
+import { useRef, useLayoutEffect, useState, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMissionStore } from '../store/useMissionStore'
 import MentionText from './MentionText'
@@ -76,7 +75,7 @@ export default function ChatWidget() {
     if (atIndex !== -1) {
       const before = inputValue.slice(0, atIndex)
       const after = inputValue.slice(cursorPosition)
-      const newValue = `${ before } @${ agent.name } ${ after } `
+      const newValue = `${before}@${agent.name} ${after}`
       setInputValue(newValue)
 
       // Set cursor after the mention
@@ -162,7 +161,7 @@ export default function ChatWidget() {
   return (
     <>
       {/* Slide-out chat panel */}
-      <div className={`chat - slide - panel ${ isChatOpen ? 'open' : '' } `}>
+      <div className={`chat-slide-panel ${isChatOpen ? 'open' : ''}`}>
         <div className="chat-panel-header">
           <div className="chat-panel-title">
             <MessageCircle size={18} />
@@ -189,7 +188,7 @@ export default function ChatWidget() {
             messages.map((message) => {
               const agent = message.agent || getAgent(message.agentId)
               return (
-                <div key={message.id} className={`chat - message ${ message.isTyping ? 'chat-message--typing' : '' } `}>
+                <div key={message.id} className={`chat-message ${message.isTyping ? 'chat-message--typing' : ''}`}>
                   <div className="chat-avatar" style={{ backgroundColor: agent?.color }}>
                     {agent?.avatar}
                   </div>
@@ -236,7 +235,7 @@ export default function ChatWidget() {
                 <button
                   key={agent.id}
                   type="button"
-                  className={`mention - option ${ index === mentionIndex ? 'selected' : '' } `}
+                  className={`mention-option ${index === mentionIndex ? 'selected' : ''}`}
                   onClick={() => insertMention(agent)}
                   onMouseEnter={() => setMentionIndex(index)}
                 >
@@ -268,7 +267,7 @@ export default function ChatWidget() {
             />
             <button
               type="button"
-              className={`chat - send - button ${ loadingChat ? 'button-loading' : '' } `}
+              className={`chat-send-button ${loadingChat ? 'button-loading' : ''}`}
               onClick={handleSend}
               disabled={!inputValue.trim() || loadingChat}
             >
@@ -280,7 +279,7 @@ export default function ChatWidget() {
 
       {/* Floating toggle button */}
       <button
-        className={`chat - fab ${ isChatOpen ? 'hidden' : '' } `}
+        className={`chat-fab ${isChatOpen ? 'hidden' : ''}`}
         type="button"
         onClick={toggleChat}
       >
