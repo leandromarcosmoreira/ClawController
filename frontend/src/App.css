@@ -279,6 +279,7 @@
   overflow-y: auto;
   flex: 1;
   padding-right: 4px;
+  min-height: 0;
 }
 
 .agent-list::-webkit-scrollbar {
@@ -377,6 +378,7 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+  height: calc(100vh - 120px);
 }
 
 .kanban-header {
@@ -408,6 +410,8 @@
   grid-template-columns: repeat(5, minmax(220px, 1fr));
   gap: 16px;
   align-items: stretch;
+  flex: 1;
+  min-height: 0;
 }
 
 .kanban-column {
@@ -419,6 +423,7 @@
   flex-direction: column;
   gap: 12px;
   flex: 1;
+  min-height: 0;
 }
 
 .kanban-column-header {
@@ -451,6 +456,21 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding-right: 4px;
+}
+
+.kanban-column-body::-webkit-scrollbar {
+  width: 4px;
+}
+.kanban-column-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+.kanban-column-body::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 10px;
 }
 
 .task-card {
@@ -540,6 +560,7 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+  height: calc(100vh - 120px);
 }
 
 .live-feed {
@@ -549,10 +570,16 @@
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
   transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 .live-feed--collapsed {
   padding: 16px 20px;
+  flex: 0 0 auto;
+  min-height: auto;
 }
 
 .live-feed--collapsed .panel-header {
@@ -600,7 +627,7 @@
 
 .feed-tabs {
   display: flex;
-  gap: 8px;
+  gap: 4px;
   margin-bottom: 16px;
 }
 
@@ -608,11 +635,14 @@
   border: none;
   background: var(--bg-tertiary);
   color: var(--muted);
-  padding: 6px 12px;
+  padding: 6px 4px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 11px;
   cursor: pointer;
   transition: all 0.2s;
+  flex: 1;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .feed-tab:hover {
@@ -629,6 +659,21 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding-right: 4px;
+}
+
+.feed-list::-webkit-scrollbar {
+  width: 4px;
+}
+.feed-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.feed-list::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 10px;
 }
 
 .feed-item {

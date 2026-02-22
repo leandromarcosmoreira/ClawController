@@ -172,6 +172,8 @@
   "kanban": {
     "columns": {
       "todo": "A Fazer",
+      "inbox": "Caixa de Entrada",
+      "assigned": "Atribuído",
       "in_progress": "Em Progresso",
       "review": "Revisão",
       "done": "Concluído"
