@@ -75,6 +75,8 @@
   "kanban": {
     "columns": {
       "todo": "Por Hacer",
+      "inbox": "Bandeja de Entrada",
+      "assigned": "Asignado",
       "in_progress": "En Progreso",
       "review": "Revisión",
       "done": "Hecho"

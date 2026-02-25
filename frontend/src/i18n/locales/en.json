@@ -210,6 +210,8 @@
   "kanban": {
     "columns": {
       "todo": "To Do",
+      "inbox": "Inbox",
+      "assigned": "Assigned",
       "in_progress": "In Progress",
       "review": "Review",
       "done": "Done"

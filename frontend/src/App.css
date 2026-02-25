@@ -205,7 +205,7 @@
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr) 300px;
   gap: 24px;
-  padding: 24px 32px 80px;
+  padding: 24px 32px 24px;
 }
 
 .sidebar {
@@ -378,7 +378,7 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
-  height: calc(100vh - 120px);
+  height: calc(100vh - 128px);
 }
 
 .kanban-header {
@@ -465,9 +465,11 @@
 .kanban-column-body::-webkit-scrollbar {
   width: 4px;
 }
+
 .kanban-column-body::-webkit-scrollbar-track {
   background: transparent;
 }
+
 .kanban-column-body::-webkit-scrollbar-thumb {
   background: var(--border);
   border-radius: 10px;
@@ -668,9 +670,11 @@
 .feed-list::-webkit-scrollbar {
   width: 4px;
 }
+
 .feed-list::-webkit-scrollbar-track {
   background: transparent;
 }
+
 .feed-list::-webkit-scrollbar-thumb {
   background: var(--border);
   border-radius: 10px;
