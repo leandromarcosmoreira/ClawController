@@ -11,8 +11,27 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1.0", features = ["v4", "serde"] }
-tower-http = { version = "0.5", features = ["cors"] }
+tower-http = { version = "0.5", features = ["cors", "trace", "compression-gzip"] }
 tracing = "0.1"
-tracing-subscriber = "0.3"
+tracing-subscriber = { version = "0.3", features = ["json"] }
 anyhow = "1.0"
 reqwest = { version = "0.12", features = ["json"] }
+sha2 = "0.10"
+# Performance and Optimization
+tokio-util = "0.7"
+lru = "0.12"
+dashmap = "6.1"
+once_cell = "1.19"
+# Security and Validation
+validator = { version = "0.18", features = ["derive"] }
+regex = "1.11"
+password-hash = { version = "0.4" }
+jsonwebtoken = "0.2"
+# Monitoring and Metrics
+metrics = "0.24"
+metrics-exporter-prometheus = "0.15"
+# Resilience and Retry
+tower = { version = "0.5", features = ["timeout", "retry", "limit"] }
+# Streaming and Events
+async-stream = "0.3"
+futures = "0.3"

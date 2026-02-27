@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT AVG(value) as avg_response_time, COUNT(*) as request_count FROM performance_metrics \n        WHERE entity_type = 'agent' AND entity_id = ? AND timestamp > datetime('now', '-1 hour')\n    ",
+  "describe": {
+    "columns": [
+      {
+        "name": "avg_response_time",
+        "ordinal": 0,
+        "type_info": "Float"
+      },
+      {
+        "name": "request_count",
+        "ordinal": 1,
+        "type_info": "Int"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      false
+    ]
+  },
+  "hash": "dcc6074c3318a28d5b32ba3f0ee1e6bff29295f2b4081245afef815d5ffe6bb8"
+}

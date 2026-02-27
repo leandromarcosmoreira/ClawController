@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT created_by FROM tasks WHERE id = ? AND is_deleted = 0",
+  "describe": {
+    "columns": [
+      {
+        "name": "created_by",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "41b1a7a9121dfcf3c6c6bc1f0b886ff85199b1f71a96c4ca30bd45b05721b489"
+}

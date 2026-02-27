@@ -1,5 +1,16 @@
 mod db;
 mod models;
+mod openclaw_monitoring;
+mod openclaw_integration;
+mod openclaw_integration_helpers;
+mod openclaw_optimization;
+mod openclaw_advanced_features;
+mod agent_management_impl;
+mod agent_management_ux;
+mod agent_management_db;
+mod security;
+mod validation;
+mod audit;
 
 use axum::{
     extract::{ws::{Message, WebSocket, WebSocketUpgrade}, Path, State},
@@ -53,6 +64,10 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let pool = db::setup_db().await?;
+    // Setup agent management tables
+    agent_management_db::setup_agent_management_tables(&pool).await?;
+    // Insert default agent templates
+    agent_management_db::insert_default_agent_templates(&pool).await?;
     let manager = Arc::new(ConnectionManager::new());
     
     let gateway_status = RwLock::new(GatewayStatus {
@@ -108,13 +123,66 @@ async fn main() -> anyhow::Result<()> {
         .route("/monitoring/gateway/status", get(get_gateway_status))
         .route("/monitoring/gateway/restart", post(restart_gateway))
         .route("/monitoring/stuck-tasks/status", get(get_stuck_task_status))
-        .route("/monitoring/stuck-tasks/check", post(run_stuck_task_check));
+        .route("/monitoring/stuck-tasks/check", post(run_stuck_task_check))
+        // Enhanced OpenClaw Integration Endpoints
+        .route("/openclaw/config/agents", get(get_openclaw_agent_configs))
+        .route("/openclaw/config/agents/:id", get(get_openclaw_agent_config))
+        .route("/openclaw/config/sync", post(sync_openclaw_configs))
+        .route("/openclaw/config/apply/:id", post(apply_agent_config))
+        .route("/openclaw/agents/enhanced", get(fetch_enhanced_openclaw_agents))
+        .route("/openclaw/agents/:id/parameters", get(get_agent_parameters))
+        .route("/openclaw/agents/:id/parameters", post(update_agent_parameters))
+        .route("/openclaw/agents/:id/history", get(get_agent_parameter_history))
+        .route("/openclaw/config/validate", post(validate_agent_config))
+        .route("/openclaw/config/export", post(export_agent_configs))
+        .route("/openclaw/config/import", post(import_agent_configs))
+        // Enhanced Monitoring and Events
+        .route("/openclaw/events", get(get_openclaw_events))
+        .route("/openclaw/health", get(get_openclaw_health))
+        .route("/openclaw/metrics", get(get_openclaw_metrics))
+        .route("/openclaw/refresh", post(refresh_openclaw_config))
+        .route("/openclaw/agents/:id/parameters/events", post(update_agent_parameters_with_events))
+        // Enhanced Agent Management
+        .route("/agents", post(create_or_update_agent_comprehensive))
+        .route("/agents/:id", get(get_agent_comprehensive))
+        .route("/agents/:id/clone", post(clone_agent))
+        .route("/agents/:id/recommendations", get(get_agent_recommendations))
+        // User-friendly Agent Management
+        .route("/agents/quick", post(create_agent_quick))
+        .route("/agents/wizard", post(configuration_wizard))
+        .route("/agents/help/:topic", get(get_configuration_help))
+        .route("/agents/:id/suggestions", get(get_smart_suggestions))
+        .route("/agents/validate", post(validate_configuration_friendly))
+        .route("/agents/templates/user-friendly", get(get_templates_user_friendly))
+        .route("/agents/compare/visual", post(compare_agents_visual))
+        // Performance Optimization Endpoints
+        .route("/optimization/cache/warm", post(warm_cache))
+        .route("/optimization/status", get(get_optimization_status))
+        .route("/optimization/pool/status", get(get_pool_status))
+        .route("/optimization/resources/status", get(get_resource_status))
+        // Advanced Collaboration Features
+        .route("/collaboration/teams", post(create_collaboration_team))
+        .route("/collaboration/teams/:id/delegate", post(delegate_task_to_team))
+        .route("/collaboration/status", get(get_advanced_features_status))
+        // Security and Validation
+        .route("/security/login", post(authenticate_user))
+        .route("/security/users", post(create_user))
+        .route("/security/users/:id", patch(update_user))
+        .route("/security/password/change", post(change_password))
+        .route("/security/sessions", post(create_session))
+        .route("/security/audit", get(get_audit_trail))
+        .route("/security/events", get(get_security_events))
+        // Validation Endpoints
+        .route("/validation/agent", post(validate_agent_creation))
+        .route("/validation/task", post(validate_task_creation))
+        .route("/validation/comment", post(validate_comment_creation));
 
     let app = Router::new()
         .route("/", get(root))
         .route("/ws", get(ws_handler))
         .nest("/api", api_routes)
         .layer(CorsLayer::permissive())
+        .layer(middleware::from_fn(openclaw_monitoring::monitoring_middleware()))
         .with_state(state.clone());
 
     // Spawn background tasks
@@ -824,6 +892,13 @@ async fn run_stuck_task_check(
         Err(e) => Json(serde_json::json!({ "success": false, "error": e.to_string() }))
     }
 }
+
+// OpenClaw Integration Endpoints (re-exported from module)
+use openclaw_monitoring::*;
+use openclaw_integration::*;
+use openclaw_optimization::*;
+use openclaw_advanced_features::*;
+use agent_management_impl::*;
 
 // Monitoring Helper Functions
 

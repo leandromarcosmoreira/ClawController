@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT created_by FROM agents WHERE id = ? AND is_deleted = 0",
+  "describe": {
+    "columns": [
+      {
+        "name": "created_by",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "126ac9250fe91e1ef724988e0c545de1c78c90da05d1c45852d6e44cc8fe4b1a"
+}
