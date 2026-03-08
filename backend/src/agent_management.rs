@@ -138,13 +138,7 @@ pub struct ActiveHoursConfig {
     pub sunday: DaySchedule,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DaySchedule {
-    pub enabled: bool,
-    pub start_time: String, // "09:00"
-    pub end_time: String,   // "17:00"
-    pub breaks: Vec<String>, // ["12:00-13:00"]
-}
+
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BreakSchedule {
@@ -306,6 +300,167 @@ pub struct ValidationOptions {
     pub check_performance: bool,
     pub check_compatibility: bool,
     pub custom_validators: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentComparisonRequest {
+    pub agent_ids: Vec<String>,
+    pub comparison_type: ComparisonType,
+    pub metrics: Vec<String>,
+    pub period: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ComparisonType {
+    Performance,
+    Cost,
+    Capabilities,
+    Usage,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentComparison {
+    pub comparison_id: String,
+    pub agents: Vec<AgentComparisonData>,
+    pub rankings: ComparisonRankings,
+    pub insights: Vec<ComparisonInsight>,
+    pub recommendations: Vec<ComparisonRecommendation>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentComparisonData {
+    pub agent_id: String,
+    pub metrics: HashMap<String, f64>,
+    pub rank: u32,
+    pub score: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ComparisonRankings {
+    pub overall_ranking: Vec<String>,
+    pub performance_ranking: Vec<String>,
+    pub cost_ranking: Vec<String>,
+    pub capability_ranking: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ComparisonInsight {
+    pub title: String,
+    pub description: String,
+    pub agents_involved: Vec<String>,
+    pub significance: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ComparisonRecommendation {
+    pub category: String,
+    pub title: String,
+    pub description: String,
+    pub target_agents: Vec<String>,
+    pub expected_impact: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentUsageInsights {
+    pub agent_id: String,
+    pub usage_patterns: UsagePatterns,
+    pub peak_times: Vec<TimeSlot>,
+    pub common_tasks: Vec<TaskPattern>,
+    pub efficiency_metrics: EfficiencyMetrics,
+    pub optimization_suggestions: Vec<OptimizationSuggestion>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UsagePatterns {
+    pub daily_pattern: Vec<f64>,
+    pub weekly_pattern: Vec<f64>,
+    pub monthly_pattern: Vec<f64>,
+    pub seasonal_variations: Vec<f64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaskPattern {
+    pub task_type: String,
+    pub frequency: f64,
+    pub average_duration: Duration,
+    pub success_rate: f64,
+    pub common_errors: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EfficiencyMetrics {
+    pub tasks_per_hour: f64,
+    pub cost_per_task: f64,
+    pub time_to_completion: Duration,
+    pub resource_efficiency: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OptimizationSuggestion {
+    pub category: String,
+    pub title: String,
+    pub description: String,
+    pub potential_savings: String,
+    pub implementation_effort: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentAnalytics {
+    pub agent_id: String,
+    pub period: String,
+    pub metrics: AnalyticsMetrics,
+    pub trends: AnalyticsTrends,
+    pub insights: Vec<AnalyticsInsight>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AnalyticsMetrics {
+    pub total_tasks: u64,
+    pub success_rate: f64,
+    pub average_duration: Duration,
+    pub cost_analysis: CostAnalysis,
+    pub resource_utilization: ResourceUtilization,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CostAnalysis {
+    pub total_cost: f64,
+    pub cost_per_task: f64,
+    pub cost_trend: String,
+    pub budget_usage: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ResourceUtilization {
+    pub cpu_usage: Vec<f64>,
+    pub memory_usage: Vec<f64>,
+    pub token_usage: Vec<u64>,
+    pub api_calls: Vec<u64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AnalyticsTrends {
+    pub performance_trend: TrendDirection,
+    pub cost_trend: TrendDirection,
+    pub usage_trend: TrendDirection,
+    pub satisfaction_trend: TrendDirection,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum TrendDirection {
+    Increasing,
+    Decreasing,
+    Stable,
+    Volatile,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AnalyticsInsight {
+    pub category: String,
+    pub title: String,
+    pub description: String,
+    pub impact: String,
+    pub recommendation: String,
 }
 
 // Enhanced Agent Management Endpoints
@@ -823,7 +978,7 @@ pub struct CreateFromTemplateRequest {
 
 // Helper functions (implementations would go here)
 
-async fn create_agent_comprehensive(
+pub async fn create_agent_comprehensive(
     pool: &SqlitePool,
     request: &AgentManagementRequest,
 ) -> Result<AgentManagementResponse, Box<dyn std::error::Error + Send + Sync>> {

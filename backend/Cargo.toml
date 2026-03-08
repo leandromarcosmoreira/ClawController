@@ -26,7 +26,10 @@ once_cell = "1.19"
 validator = { version = "0.18", features = ["derive"] }
 regex = "1.11"
 password-hash = { version = "0.4" }
-jsonwebtoken = "0.2"
+jsonwebtoken = "9.0"
+bcrypt = "0.15"
+rand = "0.8"
+thiserror = "2.0"
 # Monitoring and Metrics
 metrics = "0.24"
 metrics-exporter-prometheus = "0.15"

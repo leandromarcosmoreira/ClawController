@@ -1,4 +1,6 @@
 use crate::agent_management::*;
+use crate::models::{self, *};
+use crate::models::ActiveHoursConfig;
 use axum::{
     extract::{Path, State, Query},
     Json,
@@ -508,8 +510,8 @@ fn generate_smart_config(request: &QuickAgentRequest) -> AgentConfigRequest {
             fallback_models: vec!["openai/gpt-4".to_string()],
             image_model: None,
             model_params: HashMap::new(),
-            thinking_level,
-            verbose_level,
+            thinking_level: thinking,
+            verbose_level: verbose,
             temperature: Some(0.3),
             max_tokens: Some(2000),
         },
@@ -553,13 +555,16 @@ fn generate_smart_config(request: &QuickAgentRequest) -> AgentConfigRequest {
             working_hours: WorkingHours {
                 timezone: "UTC".to_string(),
                 active_hours: ActiveHoursConfig {
-                    monday: DaySchedule { enabled: true, start_time: "09:00".to_string(), end_time: "18:00".to_string(), breaks: vec!["12:00-13:00".to_string()] },
-                    tuesday: DaySchedule { enabled: true, start_time: "09:00".to_string(), end_time: "18:00".to_string(), breaks: vec!["12:00-13:00".to_string()] },
-                    wednesday: DaySchedule { enabled: true, start_time: "09:00".to_string(), end_time: "18:00".to_string(), breaks: vec!["12:00-13:00".to_string()] },
-                    thursday: DaySchedule { enabled: true, start_time: "09:00".to_string(), end_time: "18:00".to_string(), breaks: vec!["12:00-13:00".to_string()] },
-                    friday: DaySchedule { enabled: true, start_time: "09:00".to_string(), end_time: "18:00".to_string(), breaks: vec!["12:00-13:00".to_string()] },
-                    saturday: DaySchedule { enabled: false, start_time: "09:00".to_string(), end_time: "13:00".to_string(), breaks: vec![] },
-                    sunday: DaySchedule { enabled: false, start_time: "09:00".to_string(), end_time: "13:00".to_string(), breaks: vec![] },
+                    monday: Some(DaySchedule { enabled: true, start_time: "09:00".to_string(), end_time: "18:00".to_string(), breaks: vec!["12:00-13:00".to_string()] }),
+                    tuesday: Some(DaySchedule { enabled: true, start_time: "09:00".to_string(), end_time: "18:00".to_string(), breaks: vec!["12:00-13:00".to_string()] }),
+                    wednesday: Some(DaySchedule { enabled: true, start_time: "09:00".to_string(), end_time: "18:00".to_string(), breaks: vec!["12:00-13:00".to_string()] }),
+                    thursday: Some(DaySchedule { enabled: true, start_time: "09:00".to_string(), end_time: "18:00".to_string(), breaks: vec!["12:00-13:00".to_string()] }),
+                    friday: Some(DaySchedule { enabled: true, start_time: "09:00".to_string(), end_time: "18:00".to_string(), breaks: vec!["12:00-13:00".to_string()] }),
+                    saturday: Some(DaySchedule { enabled: false, start_time: "09:00".to_string(), end_time: "13:00".to_string(), breaks: vec![] }),
+                    sunday: Some(DaySchedule { enabled: false, start_time: "09:00".to_string(), end_time: "13:00".to_string(), breaks: vec![] }),
+                    start: None,
+                    end: None,
+                    timezone: None,
                 },
                 break_schedule: vec![],
                 availability_calendar: HashMap::new(),
@@ -839,7 +844,7 @@ fn validate_answer(answers: &HashMap<String, serde_json::Value>, rule: &Validati
     if let Some(answer) = answers.get(&rule.id) {
         if let Some(min_length) = rule.min_length {
             if let Some(s) = answer.as_str() {
-                if s.len() < min_length {
+                if s.len() < min_length as usize {
                     return false;
                 }
             }
@@ -847,7 +852,7 @@ fn validate_answer(answers: &HashMap<String, serde_json::Value>, rule: &Validati
         
         if let Some(max_length) = rule.max_length {
             if let Some(s) = answer.as_str() {
-                if s.len() > max_length {
+                if s.len() > max_length as usize {
                     return false;
                 }
             }

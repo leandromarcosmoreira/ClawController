@@ -7,48 +7,56 @@ use regex::Regex;
 use tracing::{info, warn, error};
 use std::collections::HashMap;
 use chrono::Utc;
+use axum::{
+    extract::{State, Json},
+    response::IntoResponse,
+    http::StatusCode,
+};
+use crate::AppState;
+
+
 
 // Validation functions for agents
-pub fn validate_agent_creation(agent: &CreateAgentRequest) -> Result<(), Vec<ValidationError>> {
+pub fn validate_agent_creation(agent: &CreateAgentRequest) -> Result<(), Vec<LocalClawValidationError>> {
     let mut errors = Vec::new();
     
     // Validate name
     if agent.name.is_empty() {
-        errors.push(ValidationError::new("Agent name cannot be empty"));
+        errors.push(LocalClawValidationError::new("Agent name cannot be empty"));
     }
     
     if agent.name.len() > 255 {
-        errors.push(ValidationError::new("Agent name too long (max 255 characters)"));
+        errors.push(LocalClawValidationError::new("Agent name too long (max 255 characters)"));
     }
     
     // Validate role
     if agent.role.is_empty() {
-        errors.push(ValidationError::new("Agent role cannot be empty"));
+        errors.push(LocalClawValidationError::new("Agent role cannot be empty"));
     }
     
     // Validate primary model
     if agent.primary_model.is_empty() {
-        errors.push(ValidationError::new("Primary model cannot be empty"));
+        errors.push(LocalClawValidationError::new("Primary model cannot be empty"));
     }
     
     // Validate thinking level
     if let Some(thinking) = agent.thinking_default {
         if thinking < 1 || thinking > 6 {
-            errors.push(ValidationError::new("Thinking level must be between 1 and 6"));
+            errors.push(LocalClawValidationError::new("Thinking level must be between 1 and 6"));
         }
     }
     
     // Validate temperature
     if let Some(temp) = agent.temperature {
         if temp < 0.0 || temp > 2.0 {
-            errors.push(ValidationError::new("Temperature must be between 0.0 and 2.0"));
+            errors.push(LocalClawValidationError::new("Temperature must be between 0.0 and 2.0"));
         }
     }
     
     // Validate max tokens
     if let Some(max_tokens) = agent.max_tokens {
         if max_tokens < 1 || max_tokens > 128000 {
-            errors.push(ValidationError::new("Max tokens must be between 1 and 128000"));
+            errors.push(LocalClawValidationError::new("Max tokens must be between 1 and 128000"));
         }
     }
     
@@ -60,60 +68,60 @@ pub fn validate_agent_creation(agent: &CreateAgentRequest) -> Result<(), Vec<Val
 }
 
 // Validation functions for tasks
-pub fn validate_task_creation(task: &CreateTaskRequest) -> Result<(), Vec<ValidationError>> {
+pub fn validate_task_creation(task: &CreateTaskRequest) -> Result<(), Vec<LocalClawValidationError>> {
     let mut errors = Vec::new();
     
     // Validate title
     if task.title.is_empty() {
-        errors.push(ValidationError::new("Task title cannot be empty"));
+        errors.push(LocalClawValidationError::new("Task title cannot be empty"));
     }
     
     if task.title.len() > 500 {
-        errors.push(ValidationError::new("Task title too long (max 500 characters)"));
+        errors.push(LocalClawValidationError::new("Task title too long (max 500 characters)"));
     }
     
     // Validate priority
     match task.priority {
-        Priority::Low | Priority::Medium | Priority::High | Priority::Critical => {},
-        _ => errors.push(ValidationError::new("Invalid priority level")),
+        Priority::Low | Priority::Normal | Priority::High | Priority::Critical => {},
+        _ => errors.push(LocalClawValidationError::new("Invalid priority level")),
     }
     
     // Validate estimated hours
     if let Some(hours) = task.estimated_hours {
         if hours < 0.0 {
-            errors.push(ValidationError::new("Estimated hours cannot be negative"));
+            errors.push(LocalClawValidationError::new("Estimated hours cannot be negative"));
         }
         
         if hours > 1000.0 {
-            errors.push(ValidationError::new("Estimated hours too high (max 1000)"));
+            errors.push(LocalClawValidationError::new("Estimated hours too high (max 1000)"));
         }
     }
     
     // Validate actual hours
     if let Some(actual) = task.actual_hours {
         if actual < 0.0 {
-            errors.push(ValidationError::new("Actual hours cannot be negative"));
+            errors.push(LocalClawValidationError::new("Actual hours cannot be negative"));
         }
     }
     
     // Validate complexity score
     if let Some(complexity) = task.complexity_score {
         if complexity < 1 || complexity > 10 {
-            errors.push(ValidationError::new("Complexity score must be between 1 and 10"));
+            errors.push(LocalClawValidationError::new("Complexity score must be between 1 and 10"));
         }
     }
     
     // Validate dependencies
     if let Some(dependencies) = &task.dependencies {
         if let Err(_) = validate_json_field(dependencies) {
-            errors.push(ValidationError::new("Dependencies must be valid JSON array"));
+            errors.push(LocalClawValidationError::new("Dependencies must be valid JSON array"));
         }
     }
     
     // Validate deliverables
     if let Some(deliverables) = &task.deliverables {
         if let Err(_) = validate_json_field(deliverables) {
-            errors.push(ValidationError::new("Deliverables must be valid JSON array"));
+            errors.push(LocalClawValidationError::new("Deliverables must be valid JSON array"));
         }
     }
     
@@ -125,21 +133,21 @@ pub fn validate_task_creation(task: &CreateTaskRequest) -> Result<(), Vec<Valida
 }
 
 // Validation functions for comments
-pub fn validate_comment_creation(comment: &CreateCommentRequest) -> Result<(), Vec<ValidationError>> {
+pub fn validate_comment_creation(comment: &CreateCommentRequest) -> Result<(), Vec<LocalClawValidationError>> {
     let mut errors = Vec::new();
     
     // Validate content
     if comment.content.is_empty() {
-        errors.push(ValidationError::new("Comment content cannot be empty"));
+        errors.push(LocalClawValidationError::new("Comment content cannot be empty"));
     }
     
     if comment.content.len() > 10000 {
-        errors.push(ValidationError::new("Comment too long (max 10000 characters)"));
+        errors.push(LocalClawValidationError::new("Comment too long (max 10000 characters)"));
     }
     
     // Validate agent ID
     if comment.agent_id.is_empty() {
-        errors.push(ValidationError::new("Agent ID cannot be empty"));
+        errors.push(LocalClawValidationError::new("Agent ID cannot be empty"));
     }
     
     if errors.is_empty() {
@@ -150,52 +158,52 @@ pub fn validate_comment_creation(comment: &CreateCommentRequest) -> Result<(), V
 }
 
 // Validation functions for users
-pub fn validate_user_creation(user: &CreateUserRequest) -> Result<(), Vec<ValidationError>> {
+pub fn validate_user_creation(user: &CreateUserRequest) -> Result<(), Vec<LocalClawValidationError>> {
     let mut errors = Vec::new();
     
     // Validate username
     if user.username.is_empty() {
-        errors.push(ValidationError::new("Username cannot be empty"));
+        errors.push(LocalClawValidationError::new("Username cannot be empty"));
     }
     
     if user.username.len() < 3 {
-        errors.push(ValidationError::new("Username too short (min 3 characters)"));
+        errors.push(LocalClawValidationError::new("Username too short (min 3 characters)"));
     }
     
     if user.username.len() > 50 {
-        errors.push(ValidationError::new("Username too long (max 50 characters)"));
+        errors.push(LocalClawValidationError::new("Username too long (max 50 characters)"));
     }
     
     // Validate email
     if !validate_email(&user.email) {
-        errors.push(ValidationError::new("Invalid email format"));
+        errors.push(LocalClawValidationError::new("Invalid email format"));
     }
     
     // Validate password
     let (is_valid, issues) = validate_password_strength(&user.password);
     if !is_valid {
         for issue in issues {
-            errors.push(ValidationError::new(&issue));
+            errors.push(LocalClawValidationError::new(&issue));
         }
     }
     
     // Validate role
     match user.role.as_str() {
         "SUPER_ADMIN" | "ADMIN" | "USER" | "READ_ONLY" => {},
-        _ => errors.push(ValidationError::new("Invalid role")),
+        _ => errors.push(LocalClawValidationError::new("Invalid role")),
     }
     
     // Validate access level
     match user.access_level {
         AccessLevel::SuperAdmin | AccessLevel::Admin | AccessLevel::ReadWrite | AccessLevel::ReadOnly => {},
-        _ => errors.push(ValidationError::new("Invalid access level")),
+        _ => errors.push(LocalClawValidationError::new("Invalid access level")),
     }
     
     // Validate security level
     match user.security_level {
         SecurityLevel::Public | SecurityLevel::Internal | SecurityLevel::Confidential | 
         SecurityLevel::Restricted | SecurityLevel::Secret => {},
-        _ => errors.push(ValidationError::new("Invalid security level")),
+        _ => errors.push(LocalClawValidationError::new("Invalid security level")),
     }
     
     // Validate access level vs security level
@@ -203,17 +211,17 @@ pub fn validate_user_creation(user: &CreateUserRequest) -> Result<(), Vec<Valida
         AccessLevel::SuperAdmin => {}
         AccessLevel::Admin => {
             if user.security_level < SecurityLevel::Internal {
-                errors.push(ValidationError::new("Admin access level requires at least Internal security level"));
+                errors.push(LocalClawValidationError::new("Admin access level requires at least Internal security level"));
             }
         }
         AccessLevel::ReadWrite => {
             if user.security_level < SecurityLevel::Internal {
-                errors.push(ValidationError::new("ReadWrite access level requires at least Internal security level"));
+                errors.push(LocalClawValidationError::new("ReadWrite access level requires at least Internal security level"));
             }
         }
         AccessLevel::ReadOnly => {
             if user.security_level > SecurityLevel::Public {
-                errors.push(ValidationError::new("ReadOnly access level cannot exceed Public security level"));
+                errors.push(LocalClawValidationError::new("ReadOnly access level cannot exceed Public security level"));
             }
         }
         _ => {}
@@ -271,7 +279,7 @@ pub fn validate_file_upload(
 }
 
 // Resource validation
-pub fn validate_resource_access(
+pub async fn validate_resource_access(
     user: &User,
     resource_type: &str,
     resource_id: &str,
@@ -286,9 +294,9 @@ pub fn validate_resource_access(
     // Check entity ownership if applicable
     match resource_type {
         "agent" => {
-            let agent = query_as!(
+            let agent = sqlx::query_as::<sqlx::Sqlite, 
                 Agent,
-                "SELECT created_by FROM agents WHERE id = ? AND is_deleted = 0",
+                "SELECT * FROM agents WHERE id = ? AND is_deleted = 0",
                 resource_id
             )
             .fetch_optional(pool)
@@ -304,9 +312,9 @@ pub fn validate_resource_access(
             }
         }
         "task" => {
-            let task = query_as!(
+            let task = sqlx::query_as::<sqlx::Sqlite, 
                 Task,
-                "SELECT created_by FROM tasks WHERE id = ? AND is_deleted = 0",
+                "SELECT * FROM tasks WHERE id = ? AND is_deleted = 0",
                 resource_id
             )
             .fetch_optional(pool)
@@ -323,7 +331,19 @@ pub fn validate_resource_access(
         }
         _ => Ok(()),
     }
-    
+
+    Ok(())
+}
+
+pub async fn validate_multiple_resource_access(
+    user: &User,
+    resources: Vec<(&str, &str)>,
+    action: &str,
+    pool: &SqlitePool,
+) -> Result<(), String> {
+    for (res_type, res_id) in resources {
+        validate_resource_access(user, res_type, res_id, action, pool).await?;
+    }
     Ok(())
 }
 
@@ -335,10 +355,10 @@ pub fn sanitize_user_input(input: &str) -> String {
         .collect()
 }
 
-pub fn validate_agent_performance(agent_id: &str, pool: &SqlitePool) -> Result<(), String> {
-    let metrics = query_as!(
+pub async fn validate_agent_performance(agent_id: &str, pool: &SqlitePool) -> Result<(), String> {
+    let metrics = sqlx::query_as::<sqlx::Sqlite, 
         PerformanceMetric,
-        "SELECT AVG(value) as avg_response_time, COUNT(*) as request_count FROM performance_metrics 
+        "SELECT * FROM performance_metrics 
         WHERE entity_type = 'agent' AND entity_id = ? AND timestamp > datetime('now', '-1 hour')
     ",
         agent_id
@@ -400,8 +420,8 @@ fn validate_password_strength(password: &str) -> (bool, Vec<String>) {
 }
 
 // Error handling
-#[derive(Debug, thiserror::Error)]
-pub enum ValidationError {
+#[derive(Debug, thiserror::Error, serde::Serialize, serde::Deserialize)]
+pub enum LocalLocalClawValidationError {
     #[error("Invalid format: {0}")]
     InvalidFormat(String),
     #[error("Constraint violation: {0}")]
@@ -414,20 +434,46 @@ pub enum ValidationError {
     DataIntegrity(String),
 }
 
-impl std::fmt::Display for ValidationError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            ValidationError::InvalidFormat(msg) => write!(f, "Invalid format: {}", msg),
-            ValidationError::ConstraintViolation(msg) => write!(f, "Constraint violation: {}", msg),
-            ValidationError::BusinessRule(msg) => write!(f, "Business rule violation: {}", msg),
-            ValidationError::SecurityViolation(msg) => write!(f, "Security violation: {}", msg),
-            ValidationError::DataIntegrity(msg) => write!(f, "Data integrity error: {}", msg),
-        }
+impl From<Vec<LocalLocalClawValidationError>> for LocalLocalClawValidationError {
+    fn from(error: Vec<LocalLocalClawValidationError>) -> Self {
+        LocalLocalClawValidationError::InvalidFormat(format!("{:?}", error))
     }
 }
 
-impl std::error::Error for ValidationError {
-    fn from(error: Vec<ValidationError>) -> Self {
-        ValidationError::ConstraintViolation(error.iter().map(|e| e.to_string()).collect())
+// Axum Handlers
+pub async fn validate_agent_creation_handler(
+    State(_state): State<AppState>,
+    Json(payload): Json<CreateAgentRequest>,
+) -> impl IntoResponse {
+    match validate_agent_creation(&payload) {
+        Ok(_) => (StatusCode::OK, Json("Valid")),
+        Err(e) => (StatusCode::BAD_REQUEST, Json(e)),
     }
+}
+
+pub async fn validate_task_creation_handler(
+    State(_state): State<AppState>,
+    Json(payload): Json<CreateTaskRequest>,
+) -> impl IntoResponse {
+    match validate_task_creation(&payload) {
+        Ok(_) => (StatusCode::OK, Json("Valid")),
+        Err(e) => (StatusCode::BAD_REQUEST, Json(e)),
+    }
+}
+
+pub async fn validate_comment_creation_handler(
+    State(_state): State<AppState>,
+    Json(payload): Json<CreateCommentRequest>,
+) -> impl IntoResponse {
+    match validate_comment_creation(&payload) {
+        Ok(_) => (StatusCode::OK, Json("Valid")),
+        Err(e) => (StatusCode::BAD_REQUEST, Json(e)),
+    }
+}
+
+pub async fn validate_configuration_friendly_handler(
+    State(_state): State<AppState>,
+    Json(payload): Json<Value>,
+) -> impl IntoResponse {
+    (StatusCode::NOT_IMPLEMENTED, "Not implemented")
 }

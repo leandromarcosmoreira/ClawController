@@ -1,16 +1,17 @@
-mod db;
-mod models;
-mod openclaw_monitoring;
-mod openclaw_integration;
-mod openclaw_integration_helpers;
-mod openclaw_optimization;
-mod openclaw_advanced_features;
-mod agent_management_impl;
-mod agent_management_ux;
-mod agent_management_db;
-mod security;
-mod validation;
-mod audit;
+pub(crate) mod db;
+pub(crate) mod models;
+pub(crate) mod openclaw_monitoring;
+pub(crate) mod openclaw_integration;
+pub(crate) mod openclaw_integration_helpers;
+pub(crate) mod openclaw_optimization;
+pub(crate) mod openclaw_advanced_features;
+pub(crate) mod agent_management_impl;
+pub(crate) mod agent_management_ux;
+pub(crate) mod agent_management_db;
+pub(crate) mod security;
+pub(crate) mod validation;
+pub(crate) mod audit;
+pub(crate) mod agent_management;
 
 use axum::{
     extract::{ws::{Message, WebSocket, WebSocketUpgrade}, Path, State},
@@ -26,9 +27,20 @@ use std::sync::Arc;
 use tokio::sync::{broadcast, RwLock};
 use tower_http::cors::CorsLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use models::*;
+use crate::models::*;
+use crate::agent_management_ux::*;
+use crate::agent_management_impl::*;
+use crate::security::*;
+use crate::validation::*;
+use crate::openclaw_integration::*;
+use crate::openclaw_monitoring::*;
+use crate::openclaw_advanced_features::*;
+use crate::openclaw_optimization::*;
+use crate::audit::*;
+use crate::agent_management_db::*;
 use tokio::process::Command;
 use chrono::Utc;
+use axum::middleware;
 
 // Connection Manager for WebSockets
 pub struct ConnectionManager {
@@ -50,11 +62,12 @@ impl ConnectionManager {
     }
 }
 
+#[derive(Clone)]
 struct AppState {
     pool: SqlitePool,
     manager: Arc<ConnectionManager>,
-    gateway_status: RwLock<GatewayStatus>,
-    stuck_task_status: RwLock<StuckTaskStatus>,
+    gateway_status: Arc<RwLock<GatewayStatus>>,
+    stuck_task_status: Arc<RwLock<StuckTaskStatus>>,
 }
 
 #[tokio::main]
@@ -68,9 +81,9 @@ async fn main() -> anyhow::Result<()> {
     agent_management_db::setup_agent_management_tables(&pool).await?;
     // Insert default agent templates
     agent_management_db::insert_default_agent_templates(&pool).await?;
-    let manager = Arc::new(ConnectionManager::new());
+    let manager = ConnectionManager::new();
     
-    let gateway_status = RwLock::new(GatewayStatus {
+    let gateway_status = Arc::new(RwLock::new(GatewayStatus {
         health_status: "unknown".to_string(),
         uptime_seconds: 0,
         last_check_time: Utc::now(),
@@ -81,9 +94,9 @@ async fn main() -> anyhow::Result<()> {
             max_restart_attempts: 3,
             notification_cooldown_minutes: 30,
         },
-    });
+    }));
 
-    let stuck_task_status = RwLock::new(StuckTaskStatus {
+    let stuck_task_status = Arc::new(RwLock::new(StuckTaskStatus {
         total_notifications_sent: 0,
         currently_tracked_tasks: 0,
         last_run: Utc::now(),
@@ -91,11 +104,11 @@ async fn main() -> anyhow::Result<()> {
             normal_priority_limit_minutes: 120,
             urgent_priority_limit_minutes: 30,
         },
-    });
+    }));
 
-    let state = Arc::new(AppState { pool, manager, gateway_status, stuck_task_status });
+    let state = AppState { pool, manager: Arc::new(manager), gateway_status, stuck_task_status };
 
-    let api_routes = Router::new()
+    let api_routes = Router::<AppState>::new()
         .route("/agents", get(get_agents).post(create_agent))
         .route("/agents/:id", get(get_agent).patch(update_agent).delete(delete_agent))
         .route("/tasks", get(get_tasks).post(create_task))
@@ -152,7 +165,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/agents/wizard", post(configuration_wizard))
         .route("/agents/help/:topic", get(get_configuration_help))
         .route("/agents/:id/suggestions", get(get_smart_suggestions))
-        .route("/agents/validate", post(validate_configuration_friendly))
+        .route("/agents/validate", post(validate_configuration_friendly_handler))
         .route("/agents/templates/user-friendly", get(get_templates_user_friendly))
         .route("/agents/compare/visual", post(compare_agents_visual))
         // Performance Optimization Endpoints
@@ -173,16 +186,16 @@ async fn main() -> anyhow::Result<()> {
         .route("/security/audit", get(get_audit_trail))
         .route("/security/events", get(get_security_events))
         // Validation Endpoints
-        .route("/validation/agent", post(validate_agent_creation))
-        .route("/validation/task", post(validate_task_creation))
-        .route("/validation/comment", post(validate_comment_creation));
+        .route("/validation/agent", post(validate_agent_creation_handler))
+        .route("/validation/task", post(validate_task_creation_handler))
+        .route("/validation/comment", post(validate_comment_creation_handler));
 
-    let app = Router::new()
+    let app = Router::<AppState>::new()
         .route("/", get(root))
         .route("/ws", get(ws_handler))
         .nest("/api", api_routes)
         .layer(CorsLayer::permissive())
-        .layer(middleware::from_fn(openclaw_monitoring::monitoring_middleware()))
+        .layer(middleware::from_fn(monitoring_middleware))
         .with_state(state.clone());
 
     // Spawn background tasks
@@ -230,12 +243,12 @@ async fn root() -> &'static str {
 
 async fn ws_handler(
     ws: WebSocketUpgrade,
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>,
 ) -> impl IntoResponse {
     ws.on_upgrade(|socket| handle_socket(socket, state))
 }
 
-async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>) {
+async fn handle_socket(mut socket: WebSocket, state: AppState) {
     let mut rx = state.manager.subscribe();
     
     let mut send_task = tokio::spawn(async move {
@@ -253,7 +266,7 @@ async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>) {
 }
 
 async fn get_agents(
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>,
 ) -> Result<Json<Vec<Agent>>, (StatusCode, String)> {
     let agents = sqlx::query_as::<sqlx::Sqlite, Agent>(
         "SELECT id, name, role, description, avatar, status, workspace, token, primary_model, fallback_model, current_model, model_failure_count, created_at FROM agents"
@@ -267,7 +280,7 @@ async fn get_agents(
 
 async fn get_agent(
     Path(id): Path<String>,
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>,
 ) -> Result<Json<Agent>, (StatusCode, String)> {
     let agent = sqlx::query_as::<sqlx::Sqlite, Agent>(
         "SELECT id, name, role, description, avatar, status, workspace, token, primary_model, fallback_model, current_model, model_failure_count, created_at FROM agents WHERE id = ?"
@@ -281,7 +294,7 @@ async fn get_agent(
 }
 
 async fn create_agent(
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>,
     Json(payload): Json<serde_json::Value>,
 ) -> Result<Json<Agent>, (StatusCode, String)> {
     // Basic implementation for now
@@ -300,7 +313,7 @@ async fn create_agent(
 
 async fn update_agent(
     Path(id): Path<String>,
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>,
     Json(payload): Json<serde_json::Value>,
 ) -> Result<Json<Agent>, (StatusCode, String)> {
     if let Some(status) = payload["status"].as_str() {
@@ -317,7 +330,7 @@ async fn update_agent(
 
 async fn delete_agent(
     Path(id): Path<String>,
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>,
 ) -> Result<StatusCode, (StatusCode, String)> {
     sqlx::query("DELETE FROM agents WHERE id = ?")
         .bind(id)
@@ -329,7 +342,7 @@ async fn delete_agent(
 }
 
 async fn get_tasks(
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>,
 ) -> Result<Json<Vec<Task>>, (StatusCode, String)> {
     let tasks = sqlx::query_as::<sqlx::Sqlite, Task>(
         "SELECT id, title, description, status, priority, tags, assignee_id, reviewer, reviewer_id, created_at, updated_at, due_at FROM tasks"
@@ -343,7 +356,7 @@ async fn get_tasks(
 
 async fn get_task(
     Path(id): Path<String>,
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>,
 ) -> Result<Json<Task>, (StatusCode, String)> {
     let task = sqlx::query_as::<sqlx::Sqlite, Task>(
         "SELECT id, title, description, status, priority, tags, assignee_id, reviewer, reviewer_id, created_at, updated_at, due_at FROM tasks WHERE id = ?"
@@ -357,7 +370,7 @@ async fn get_task(
 }
 
 async fn create_task(
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>,
     Json(payload): Json<serde_json::Value>,
 ) -> Result<Json<Task>, (StatusCode, String)> {
     let id = uuid::Uuid::new_v4().to_string();
@@ -377,7 +390,7 @@ async fn create_task(
 
 async fn update_task(
     Path(id): Path<String>,
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>,
     Json(payload): Json<serde_json::Value>,
 ) -> Result<Json<Task>, (StatusCode, String)> {
     if let Some(status) = payload["status"].as_str() {
@@ -396,7 +409,7 @@ async fn update_task(
 
 async fn delete_task(
     Path(id): Path<String>,
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>,
 ) -> Result<StatusCode, (StatusCode, String)> {
     sqlx::query("DELETE FROM tasks WHERE id = ?")
         .bind(id)
@@ -409,7 +422,7 @@ async fn delete_task(
 
 async fn get_comments(
     Path(task_id): Path<String>,
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>,
 ) -> Result<Json<Vec<Comment>>, (StatusCode, String)> {
     let comments = sqlx::query_as::<sqlx::Sqlite, Comment>(
         "SELECT id, task_id, agent_id, content, created_at FROM comments WHERE task_id = ?"
@@ -424,7 +437,7 @@ async fn get_comments(
 
 async fn create_comment(
     Path(task_id): Path<String>,
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>,
     Json(payload): Json<serde_json::Value>,
 ) -> Result<Json<Comment>, (StatusCode, String)> {
     let id = uuid::Uuid::new_v4().to_string();
@@ -454,7 +467,7 @@ async fn create_comment(
 }
 
 async fn get_announcements(
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>,
 ) -> Result<Json<Vec<Announcement>>, (StatusCode, String)> {
     let announcements = sqlx::query_as::<sqlx::Sqlite, Announcement>(
         "SELECT id, title, message, priority, created_at, created_by FROM announcements ORDER BY created_at DESC"
@@ -467,7 +480,7 @@ async fn get_announcements(
 }
 
 async fn create_announcement(
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>,
     Json(payload): Json<serde_json::Value>,
 ) -> Result<Json<Announcement>, (StatusCode, String)> {
     let id = uuid::Uuid::new_v4().to_string();
@@ -498,7 +511,7 @@ async fn create_announcement(
 }
 
 async fn get_activity(
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>,
 ) -> Result<Json<Vec<ActivityLog>>, (StatusCode, String)> {
     let activity = sqlx::query_as::<sqlx::Sqlite, ActivityLog>(
         "SELECT id, activity_type, agent_id, task_id, description, created_at FROM activity_log ORDER BY created_at DESC LIMIT 50"
@@ -512,7 +525,7 @@ async fn get_activity(
 
 async fn get_task_activity(
     Path(task_id): Path<String>,
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>,
 ) -> Result<Json<Vec<TaskActivity>>, (StatusCode, String)> {
     let activity = sqlx::query_as::<sqlx::Sqlite, TaskActivity>(
         "SELECT id, task_id, agent_id, message, timestamp FROM task_activity WHERE task_id = ? ORDER BY timestamp DESC"
@@ -527,7 +540,7 @@ async fn get_task_activity(
 
 async fn add_task_activity(
     Path(task_id): Path<String>,
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>,
     Json(payload): Json<serde_json::Value>,
 ) -> Result<Json<TaskActivity>, (StatusCode, String)> {
     let id = uuid::Uuid::new_v4().to_string();
@@ -557,7 +570,7 @@ async fn add_task_activity(
 }
 
 async fn get_stats(
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let task_count: i32 = sqlx::query_scalar::<sqlx::Sqlite, i32>("SELECT COUNT(*) FROM tasks")
         .fetch_one(&state.pool)
@@ -583,7 +596,7 @@ async fn get_stats(
 
 async fn get_deliverables(
     Path(task_id): Path<String>,
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>,
 ) -> Result<Json<Vec<Deliverable>>, (StatusCode, String)> {
     let deliverables = sqlx::query_as::<sqlx::Sqlite, Deliverable>(
         "SELECT id, task_id, title, description, status, created_at FROM deliverables WHERE task_id = ?"
@@ -598,7 +611,7 @@ async fn get_deliverables(
 
 async fn create_deliverable(
     Path(task_id): Path<String>,
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>,
     Json(payload): Json<serde_json::Value>,
 ) -> Result<Json<Deliverable>, (StatusCode, String)> {
     let id = uuid::Uuid::new_v4().to_string();
@@ -629,7 +642,7 @@ async fn create_deliverable(
 
 async fn route_task(
     Path(id): Path<String>,
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let task = get_task(Path(id.clone()), State(state.clone())).await?;
     let assignee_id = task.assignee_id.clone().ok_or((StatusCode::BAD_REQUEST, "Task has no assignee".to_string()))?;
@@ -660,7 +673,7 @@ async fn route_task(
 }
 
 async fn list_recurring_tasks(
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>,
 ) -> Result<Json<Vec<RecurringTask>>, (StatusCode, String)> {
     let tasks = sqlx::query_as::<sqlx::Sqlite, RecurringTask>(
         "SELECT id, title, description, assignee_id, schedule_type, schedule_value, schedule_time, last_run, next_run, is_active, created_at FROM recurring_tasks"
@@ -673,7 +686,7 @@ async fn list_recurring_tasks(
 }
 
 async fn create_recurring_task(
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>,
     Json(payload): Json<serde_json::Value>,
 ) -> Result<Json<RecurringTask>, (StatusCode, String)> {
     let id = uuid::Uuid::new_v4().to_string();
@@ -761,7 +774,7 @@ async fn fetch_openclaw_agents() -> Result<Json<serde_json::Value>, (StatusCode,
 }
 
 async fn import_openclaw_agents(
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     // 1. Fetch from OpenClaw
     let gateway_agents = fetch_openclaw_agents().await?.0;
@@ -850,14 +863,14 @@ async fn get_recurring_task_runs() -> impl IntoResponse {
 }
 
 async fn get_gateway_status(
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>,
 ) -> Json<GatewayStatus> {
     let status = state.gateway_status.read().await;
     Json(status.clone())
 }
 
 async fn restart_gateway(
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>,
 ) -> Json<serde_json::Value> {
     tracing::info!("Restarting gateway...");
     let mut status = state.gateway_status.write().await;
@@ -873,14 +886,14 @@ async fn restart_gateway(
 }
 
 async fn get_stuck_task_status(
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>,
 ) -> Json<StuckTaskStatus> {
     let status = state.stuck_task_status.read().await;
     Json(status.clone())
 }
 
 async fn run_stuck_task_check(
-    State(state): State<Arc<AppState>>,
+    State(state): State<AppState>,
 ) -> Json<serde_json::Value> {
     match perform_stuck_task_check(&state.pool).await {
         Ok(count) => {

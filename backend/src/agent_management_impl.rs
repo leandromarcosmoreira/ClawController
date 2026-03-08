@@ -11,6 +11,7 @@ use sqlx::SqlitePool;
 use chrono::{Utc, Duration};
 use std::collections::HashMap;
 use serde_json::Value;
+use sha2::{Sha256, Digest};
 use tracing::{info, warn, error, debug, instrument};
 use serde::{Deserialize, Serialize};
 
@@ -563,7 +564,7 @@ async fn get_agent_performance_metrics(
     // For now, return placeholder data
     Ok(AgentPerformanceMetrics {
         total_tasks_completed: 0,
-        average_task_duration: Duration::from_secs(300),
+        average_task_duration: chrono::TimeDelta::try_seconds(300).unwrap(),
         success_rate: 0.95,
         error_rate: 0.05,
         resource_usage: ResourceUsageMetrics {
@@ -832,189 +833,12 @@ async fn increment_template_usage(pool: &SqlitePool, template_id: &str) -> Resul
     Ok(())
 }
 
-// Additional types for extended functionality
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AgentAnalytics {
-    pub agent_id: String,
-    pub period: String,
-    pub metrics: AnalyticsMetrics,
-    pub trends: AnalyticsTrends,
-    pub insights: Vec<AnalyticsInsight>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AnalyticsMetrics {
-    pub total_tasks: u64,
-    pub success_rate: f64,
-    pub average_duration: Duration,
-    pub cost_analysis: CostAnalysis,
-    pub resource_utilization: ResourceUtilization,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CostAnalysis {
-    pub total_cost: f64,
-    pub cost_per_task: f64,
-    pub cost_trend: String,
-    pub budget_usage: f64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ResourceUtilization {
-    pub cpu_usage: Vec<f64>,
-    pub memory_usage: Vec<f64>,
-    pub token_usage: Vec<u64>,
-    pub api_calls: Vec<u64>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AnalyticsTrends {
-    pub performance_trend: TrendDirection,
-    pub cost_trend: TrendDirection,
-    pub usage_trend: TrendDirection,
-    pub satisfaction_trend: TrendDirection,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum TrendDirection {
-    Increasing,
-    Decreasing,
-    Stable,
-    Volatile,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AnalyticsInsight {
-    pub category: String,
-    pub title: String,
-    pub description: String,
-    pub impact: String,
-    pub recommendation: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AgentComparisonRequest {
-    pub agent_ids: Vec<String>,
-    pub comparison_type: ComparisonType,
-    pub metrics: Vec<String>,
-    pub period: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum ComparisonType {
-    Performance,
-    Cost,
-    Capabilities,
-    Usage,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AgentComparison {
-    pub comparison_id: String,
-    pub agents: Vec<AgentComparisonData>,
-    pub rankings: ComparisonRankings,
-    pub insights: Vec<ComparisonInsight>,
-    pub recommendations: Vec<ComparisonRecommendation>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AgentComparisonData {
-    pub agent_id: String,
-    pub metrics: HashMap<String, f64>,
-    pub rank: u32,
-    pub score: f64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ComparisonRankings {
-    pub overall_ranking: Vec<String>,
-    pub performance_ranking: Vec<String>,
-    pub cost_ranking: Vec<String>,
-    pub capability_ranking: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ComparisonInsight {
-    pub title: String,
-    pub description: String,
-    pub agents_involved: Vec<String>,
-    pub significance: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ComparisonRecommendation {
-    pub category: String,
-    pub title: String,
-    pub description: String,
-    pub target_agents: Vec<String>,
-    pub expected_impact: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AgentUsageInsights {
-    pub agent_id: String,
-    pub usage_patterns: UsagePatterns,
-    pub peak_times: Vec<TimeSlot>,
-    pub common_tasks: Vec<TaskPattern>,
-    pub efficiency_metrics: EfficiencyMetrics,
-    pub optimization_suggestions: Vec<OptimizationSuggestion>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct UsagePatterns {
-    pub daily_pattern: Vec<f64>,
-    pub weekly_pattern: Vec<f64>,
-    pub monthly_pattern: Vec<f64>,
-    pub seasonal_variations: Vec<f64>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TaskPattern {
-    pub task_type: String,
-    pub frequency: f64,
-    pub average_duration: Duration,
-    pub success_rate: f64,
-    pub common_errors: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EfficiencyMetrics {
-    pub tasks_per_hour: f64,
-    pub cost_per_task: f64,
-    pub time_to_completion: Duration,
-    pub resource_efficiency: f64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct OptimizationSuggestion {
-    pub category: String,
-    pub title: String,
-    pub description: String,
-    pub potential_savings: String,
-    pub implementation_effort: String,
-}
-
-// Placeholder implementations for analytics functions
-async fn calculate_agent_analytics(
-    pool: &SqlitePool,
-    agent_id: &str,
-    period: &str,
-    metrics_type: &str,
-) -> Result<AgentAnalytics, Box<dyn std::error::Error + Send + Sync>> {
-    todo!("Implement analytics calculation")
-}
-
-async fn perform_agent_comparison(
+pub async fn perform_agent_comparison(
     pool: &SqlitePool,
     request: &AgentComparisonRequest,
 ) -> Result<AgentComparison, Box<dyn std::error::Error + Send + Sync>> {
-    todo!("Implement agent comparison")
+    // Implementation for agent comparison
+    todo!("Implement agent comparison logic")
 }
 
-async fn calculate_usage_insights(
-    pool: &SqlitePool,
-    agent_id: &str,
-) -> Result<AgentUsageInsights, Box<dyn std::error::Error + Send + Sync>> {
-    todo!("Implement usage insights calculation")
-}
+// Existing implementation functions...

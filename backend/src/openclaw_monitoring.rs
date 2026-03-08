@@ -1,4 +1,5 @@
 use crate::models::*;
+use futures::StreamExt;
 use axum::{
     extract::{Path, State},
     Json,
@@ -18,6 +19,7 @@ use lru::LruCache;
 use dashmap::DashMap;
 use once_cell::sync::Lazy;
 use validator::Validate;
+use crate::openclaw_integration::{SecurityValidator, CONFIG_CACHE, METRICS, OpenClawMetrics, sync_openclaw_configs};
 use regex::Regex;
 use tracing::{info, warn, error, debug, instrument};
 use metrics::{counter, histogram, gauge};
@@ -28,7 +30,7 @@ use tower::limit::RateLimitLayer;
 // Real-time Event Synchronization and Monitoring
 
 /// Event-driven configuration synchronization
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct ConfigSyncEvent {
     pub event_type: SyncEventType,
     pub agent_id: String,
@@ -37,7 +39,7 @@ pub struct ConfigSyncEvent {
     pub data: Option<Value>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub enum SyncEventType {
     ConfigChanged,
     AgentAdded,
@@ -66,7 +68,7 @@ impl OpenClawEventBroadcaster {
 
     pub async fn subscribe(&self, subscriber_id: String) -> tokio::sync::broadcast::Receiver<ConfigSyncEvent> {
         let (tx, rx) = tokio::sync::broadcast::channel(1000);
-        self.subscribers.insert(subscriber_id.clone(), tx);
+        self.subscribers.insert(subscriber_id.clone(), tx.clone());
         
         info!("New event subscriber: {}", subscriber_id);
         
@@ -83,10 +85,10 @@ impl OpenClawEventBroadcaster {
         // Update metrics
         match event.event_type {
             SyncEventType::ConfigChanged => {
-                self.metrics.config_reads_total.increment();
+                self.metrics.config_reads_total.increment(1);
             }
             SyncEventType::SyncCompleted => {
-                self.metrics.agent_updates_total.increment();
+                self.metrics.agent_updates_total.increment(1);
             }
             _ => {}
         }
@@ -132,7 +134,7 @@ impl OpenClawEventBroadcaster {
 }
 
 /// Global event broadcaster instance
-static EVENT_BROADCASTER: Lazy<OpenClawEventBroadcaster> = Lazy::new(OpenClawEventBroadcaster::new);
+pub static EVENT_BROADCASTER: Lazy<OpenClawEventBroadcaster> = Lazy::new(OpenClawEventBroadcaster::new);
 
 /// Advanced monitoring and health checks
 #[derive(Clone)]
@@ -142,7 +144,7 @@ pub struct OpenClawHealthMonitor {
     pub health_status: Arc<RwLock<HealthStatus>>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct HealthStatus {
     pub overall: HealthLevel,
     pub database: HealthLevel,
@@ -153,7 +155,7 @@ pub struct HealthStatus {
     pub issues: Vec<String>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub enum HealthLevel {
     Healthy,
     Degraded,
@@ -252,7 +254,7 @@ impl OpenClawHealthMonitor {
         }
 
         let duration = start_time.elapsed();
-        histogram!("openclaw_health_check_duration", duration.as_secs_f64());
+        histogram!("openclaw_health_check_duration").record(duration.as_secs_f64());
         
         info!("Health check completed in {:?} with overall status: {:?}", duration, status.overall);
         status
@@ -332,14 +334,14 @@ impl OpenClawHealthMonitor {
 
     fn calculate_overall_health(&self, status: &HealthStatus) -> HealthLevel {
         let health_levels = [
-            &status.database,
-            &status.openclaw_config,
-            &status.cache_performance,
-            &status.sync_status,
+            status.database,
+            status.openclaw_config,
+            status.cache_performance,
+            status.sync_status,
         ];
 
-        let unhealthy_count = health_levels.iter().filter(|&&level| level == HealthLevel::Unhealthy).count();
-        let degraded_count = health_levels.iter().filter(|&&level| level == HealthLevel::Degraded).count();
+        let unhealthy_count = health_levels.iter().filter(|&level| *level == HealthLevel::Unhealthy).count();
+        let degraded_count = health_levels.iter().filter(|&level| *level == HealthLevel::Degraded).count();
 
         if unhealthy_count > 0 {
             HealthLevel::Unhealthy
@@ -379,7 +381,7 @@ pub async fn get_openclaw_events(
         .header("Content-Type", "text/event-stream")
         .header("Cache-Control", "no-cache")
         .header("Connection", "keep-alive")
-        .body(axum::body::Body::from_stream(stream))
+        .body(axum::body::Body::from_stream(stream.map(|item| Ok::<_, std::convert::Infallible>(item))))
         .unwrap()
 }
 
@@ -439,7 +441,7 @@ pub async fn refresh_openclaw_config(
                 agent_id: "all".to_string(),
                 config_hash: format!("{:x}", Sha256::digest(duration.as_nanos().to_string().as_bytes())),
                 timestamp: Utc::now(),
-                data: Some(serde_json::to_value(&result).unwrap_or_default()),
+                data: Some(serde_json::to_value(&*result).unwrap_or_default()),
             }).await;
 
             Ok(Json(serde_json::json!({
@@ -496,7 +498,7 @@ pub async fn update_agent_parameters_with_events(
     }).await;
 
     // Perform the update
-    match update_agent_parameters_original(Path(agent_id.clone()), State(state), Json(params)).await {
+    match crate::openclaw_integration::update_agent_parameters(Path(agent_id.clone()), State(state), Json(params)).await {
         Ok(result) => {
             // Get updated agent for new hash
             let updated_agent = sqlx::query_as::<sqlx::Sqlite, Agent>(
@@ -570,25 +572,26 @@ async fn get_event_statistics() -> serde_json::Value {
 
 // Middleware for monitoring
 
-pub fn monitoring_middleware() -> axum::middleware::FromFn<impl Fn(axum::extract::Request, axum::middleware::Next) -> std::pin::Pin<Box<dyn std::future::Future<Output = axum::response::Response> + Send>>> {
-    axum::middleware::from_fn(|request: axum::extract::Request, next: axum::middleware::Next| async move {
-        let start = std::time::Instant::now();
-        let method = request.method().clone();
-        let uri = request.uri().clone();
-        
-        let response = next.run(request).await;
-        
-        let duration = start.elapsed();
-        let status = response.status();
-        
-        // Record metrics
-        let route = format!("{} {}", method, uri.path());
-        histogram!("http_request_duration", duration.as_secs_f64(), "route" => route, "status" => status.as_u16().to_string());
-        
-        if status.is_server_error() {
-            counter!("http_server_errors_total", "route" => route);
-        }
-        
-        response
-    })
+pub async fn monitoring_middleware(
+    request: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    let start = std::time::Instant::now();
+    let method = request.method().clone();
+    let uri = request.uri().clone();
+    
+    let response = next.run(request).await;
+    
+    let duration = start.elapsed();
+    let status = response.status();
+    
+    // Record metrics
+    let route = format!("{} {}", method, uri.path());
+    histogram!("http_request_duration", "route" => route.clone(), "status" => status.as_u16().to_string()).record(duration.as_secs_f64());
+    
+    if status.is_server_error() {
+        counter!("http_server_errors_total", "route" => route);
+    }
+    
+    response
 }

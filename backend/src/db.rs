@@ -1,4 +1,4 @@
-use sqlx::sqlite::{SqlitePool, SqlitePoolOptions, SqliteConnectOptions};
+pub use sqlx::sqlite::{SqlitePool, SqlitePoolOptions, SqliteConnectOptions};
 use std::env;
 use std::str::FromStr;
 use anyhow::Result;
@@ -17,7 +17,6 @@ pub async fn setup_db() -> Result<SqlitePool> {
     let pool = SqlitePoolOptions::new()
         .max_connections(10)
         .min_connections(2)
-        .connect_timeout(std::time::Duration::from_secs(30))
         .idle_timeout(std::time::Duration::from_secs(600))
         .max_lifetime(std::time::Duration::from_secs(1800))
         .connect_with(options)
@@ -110,7 +109,13 @@ async fn create_core_tables(pool: &SqlitePool) -> Result<(), sqlx::Error> {
             modified_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             deleted_at DATETIME,
             deleted_by TEXT,
-            is_deleted BOOLEAN DEFAULT 0
+            is_deleted BOOLEAN DEFAULT 0,
+            email_verified BOOLEAN DEFAULT 0,
+            phone_verified BOOLEAN DEFAULT 0,
+            profile_picture TEXT,
+            timezone TEXT,
+            language TEXT,
+            last_login_ip TEXT
         );
         "#
     )
@@ -150,6 +155,7 @@ async fn create_core_tables(pool: &SqlitePool) -> Result<(), sqlx::Error> {
             deleted_at DATETIME,
             deleted_by TEXT,
             is_deleted BOOLEAN DEFAULT 0,
+            modified_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             -- Constraints
             FOREIGN KEY(assignee_id) REFERENCES agents(id) ON DELETE SET NULL,
             FOREIGN KEY(reviewer_id) REFERENCES agents(id) ON DELETE SET NULL
@@ -294,7 +300,11 @@ async fn create_security_tables(pool: &SqlitePool) -> Result<(), sqlx::Error> {
             phone_verified BOOLEAN DEFAULT 0,
             profile_picture TEXT,
             timezone TEXT DEFAULT 'UTC',
-            language TEXT DEFAULT 'en'
+            language TEXT DEFAULT 'en',
+            created_by TEXT,
+            created_ip TEXT,
+            modified_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            modified_by TEXT
         );
         "#
     )
@@ -510,6 +520,8 @@ async fn create_monitoring_tables(pool: &SqlitePool) -> Result<(), sqlx::Error> 
             metric_name TEXT NOT NULL,
             metric_type TEXT NOT NULL CHECK(metric_type IN ('counter', 'gauge', 'histogram', 'timer')),
             value REAL NOT NULL,
+            avg_response_time REAL,
+            request_count INTEGER,
             labels TEXT, -- JSON object
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
             source TEXT NOT NULL CHECK(source IN ('agent', 'system', 'api', 'database', 'network')),

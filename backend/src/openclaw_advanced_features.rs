@@ -1,6 +1,7 @@
 use crate::models::*;
+use crate::openclaw_optimization::HealthChecker;
 use crate::db::SqlitePool;
-use axum::{extract::State, Json, response::IntoResponse};
+use axum::{extract::{State, Path}, Json, response::IntoResponse, http::StatusCode};
 use chrono::Utc;
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
@@ -207,15 +208,7 @@ pub struct ResolutionStrategy {
     pub resolution_process: ResolutionProcess,
 }
 
-#[derive(Clone)]
-pub enum StrategyType {
-    Negotiation,
-    Arbitration,
-    Voting,
-    Escalation,
-    Consensus,
-    Random,
-}
+
 
 #[derive(Clone)]
 pub enum ConflictType {
@@ -299,16 +292,6 @@ pub enum TieBreaker {
     Custom(Box<dyn Fn() -> String>),
 }
 
-#[derive(Clone)]
-pub struct CollaborationMetrics {
-    pub total_teams: usize,
-    pub active_collaborations: usize,
-    pub messages_exchanged: u64,
-    pub tasks_delegated: u64,
-    pub conflicts_resolved: u64,
-    pub average_response_time: Duration,
-    pub collaboration_efficiency: f64,
-}
 
 impl AgentCollaboration {
     pub fn new() -> Self {
@@ -755,14 +738,14 @@ pub struct Benchmark {
 
 #[derive(Clone)]
 pub struct AdaptationStrategy {
-    pub strategy_type: StrategyType,
+    pub strategy_type: AdaptationStrategyType,
     pub adaptation_triggers: Vec<AdaptationTrigger>,
     pub adaptation_actions: Vec<AdaptationAction>,
     pub evaluation_criteria: Vec<EvaluationCriteria>,
 }
 
 #[derive(Clone)]
-pub enum StrategyType {
+pub enum AdaptationStrategyType {
     Reactive,
     Proactive,
     Predictive,
@@ -826,7 +809,7 @@ pub struct EvaluationCriteria {
     pub weight: f64,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdaptationMetrics {
     pub adaptations_performed: u64,
     pub successful_adaptations: u64,
@@ -1059,24 +1042,10 @@ pub struct DelegateTaskRequest {
     pub delegation_strategy: Option<String>,
 }
 
-#[derive(Serialize)]
-pub struct AdvancedFeaturesStatus {
-    pub active_teams: usize,
-    pub collaboration_metrics: CollaborationMetrics,
-    pub adaptive_agents: usize,
-    pub learning_metrics: LearningMetrics,
-}
 
-#[derive(Serialize)]
-pub struct LearningMetrics {
-    pub total_feedback_processed: u64,
-    pub patterns_recognized: u64,
-    pub adaptations_performed: u64,
-    pub average_improvement: f64,
-}
 
 pub async fn create_collaboration_team(
-    State(app_state): State<Arc<crate::AppState>>,
+    State(app_state): State<crate::AppState>,
     Json(request): Json<CreateTeamRequest>,
 ) -> impl IntoResponse {
     let collaboration = AgentCollaboration::new();
@@ -1084,11 +1053,10 @@ pub async fn create_collaboration_team(
     // Fetch agents from database
     let mut members = Vec::new();
     for member_id in request.member_ids {
-        if let Ok(Some(agent)) = sqlx::query_as!(
-            Agent,
+        if let Ok(Some(agent)) = sqlx::query_as::<sqlx::Sqlite, Agent>(
             "SELECT * FROM agents WHERE id = ? AND is_active = 1"
         )
-        .bind(&member_id)
+        .bind(member_id)
         .fetch_optional(&app_state.pool)
         .await {
             members.push(agent);
@@ -1109,7 +1077,7 @@ pub async fn create_collaboration_team(
 }
 
 pub async fn get_advanced_features_status(
-    State(app_state): State<Arc<crate::AppState>>,
+    State(app_state): State<crate::AppState>,
 ) -> impl IntoResponse {
     // This would typically use actual instances from app state
     let collaboration = AgentCollaboration::new();
@@ -1127,4 +1095,17 @@ pub async fn get_advanced_features_status(
     };
     
     Json(status)
+}
+
+pub async fn delegate_task_to_team(
+    Path(id): Path<String>,
+    State(_app_state): State<crate::AppState>,
+    Json(payload): Json<Value>,
+) -> impl IntoResponse {
+    (StatusCode::OK, Json(serde_json::json!({
+        "status": "success",
+        "team_id": id,
+        "message": "Task delegated successfully (stub)",
+        "payload": payload
+    })))
 }

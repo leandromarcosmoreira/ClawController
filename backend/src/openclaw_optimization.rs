@@ -1,6 +1,6 @@
 use crate::models::*;
 use crate::db::SqlitePool;
-use axum::{extract::State, Json, response::IntoResponse};
+use axum::{extract::State, Json, response::IntoResponse, http::StatusCode};
 use chrono::Utc;
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
@@ -32,7 +32,7 @@ struct CachedConfig {
     last_accessed: chrono::DateTime<Utc>,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CacheMetrics {
     pub l1_hits: u64,
     pub l1_misses: u64,
@@ -191,7 +191,7 @@ struct BusyAgent {
     resource_usage: ResourceUsage,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResourceUsage {
     pub cpu_percent: f64,
     pub memory_mb: u64,
@@ -231,7 +231,7 @@ pub struct HealthChecker {
     pub max_failures: u32,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PoolMetrics {
     pub total_agents: usize,
     pub available_agents: usize,
@@ -647,13 +647,13 @@ impl DynamicResourceManager {
     }
 
     pub async fn should_scale_up(&self) -> bool {
-        self.cpu_monitor.current_usage > self.cpu_monitor.threshold * self.scaling_policy.scale_up_threshold ||
-        self.memory_monitor.current_usage_mb > self.memory_monitor.threshold_mb * self.scaling_policy.scale_up_threshold
+        (self.cpu_monitor.current_usage as f64) > (self.cpu_monitor.threshold as f64 * self.scaling_policy.scale_up_threshold) ||
+        (self.memory_monitor.current_usage_mb as f64) > (self.memory_monitor.threshold_mb as f64 * self.scaling_policy.scale_up_threshold)
     }
 
     pub async fn should_scale_down(&self) -> bool {
-        self.cpu_monitor.current_usage < self.cpu_monitor.threshold * self.scaling_policy.scale_down_threshold &&
-        self.memory_monitor.current_usage_mb < self.memory_monitor.threshold_mb * self.scaling_policy.scale_down_threshold
+        (self.cpu_monitor.current_usage as f64) < (self.cpu_monitor.threshold as f64 * self.scaling_policy.scale_down_threshold) &&
+        (self.memory_monitor.current_usage_mb as f64) < (self.memory_monitor.threshold_mb as f64 * self.scaling_policy.scale_down_threshold)
     }
 }
 
@@ -674,7 +674,7 @@ pub struct OptimizationStatus {
 }
 
 pub async fn warm_cache(
-    State(app_state): State<Arc<crate::AppState>>,
+    State(app_state): State<crate::AppState>,
     Json(request): Json<CacheWarmRequest>,
 ) -> impl IntoResponse {
     let cache = HierarchicalCache::new(1000, 5000);
@@ -690,7 +690,7 @@ pub async fn warm_cache(
 }
 
 pub async fn get_optimization_status(
-    State(app_state): State<Arc<crate::AppState>>,
+    State(app_state): State<crate::AppState>,
 ) -> impl IntoResponse {
     // This would typically use actual instances from app state
     let cache = HierarchicalCache::new(1000, 5000);
@@ -704,6 +704,7 @@ pub async fn get_optimization_status(
             cpu_percent: resource_manager.cpu_monitor.current_usage,
             memory_mb: resource_manager.memory_monitor.current_usage_mb,
             network_io_mb: resource_manager.network_monitor.current_io_mb,
+            disk_io_mb: resource_manager.disk_monitor.current_io_mb,
             api_calls: 0,
             cost_usd: 0.0,
         },
@@ -733,4 +734,11 @@ async fn generate_recommendations(resource_manager: &DynamicResourceManager) -> 
     }
     
     recommendations
+}
+pub async fn get_pool_status() -> impl IntoResponse {
+    (StatusCode::NOT_IMPLEMENTED, "Not implemented")
+}
+
+pub async fn get_resource_status() -> impl IntoResponse {
+    (StatusCode::NOT_IMPLEMENTED, "Not implemented")
 }

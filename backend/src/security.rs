@@ -5,11 +5,16 @@ use chrono::{Utc, Duration};
 use anyhow::Result;
 use tracing::{info, warn, error};
 use bcrypt::{hash, verify, DEFAULT_COST};
-use jsonwebtoken::{encode, decode, Header, Validation, Encoding, Header as JwtHeader};
-use jsonwebtoken::algorithm::Algorithm;
-use jsonwebtoken::token::{Header as JwtTokenHeader, Claims as JwtClaims};
+use jsonwebtoken::{encode, decode, Header, Validation, EncodingKey, DecodingKey, Algorithm};
 use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
+use axum::{
+    extract::{Path, State},
+    Json,
+    response::IntoResponse,
+    http::StatusCode,
+};
+use crate::AppState;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
@@ -41,25 +46,7 @@ pub struct LoginResponse {
     pub two_factor_required: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct UserResponse {
-    pub id: String,
-    pub username: String,
-    pub email: String,
-    pub role: String,
-    pub security_level: SecurityLevel,
-    pub access_level: AccessLevel,
-    pub is_active: bool,
-    pub last_login: Option<String>,
-    pub two_factor_enabled: bool,
-    pub email_verified: bool,
-    pub phone_verified: bool,
-    pub profile_picture: Option<String>,
-    pub timezone: String,
-    pub language: String,
-    pub created_at: String,
-    pub updated_at: String,
-}
+
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreateUserRequest {
@@ -106,6 +93,7 @@ pub struct SecurityService {
     password_min_length: usize,
     max_failed_attempts: u32,
     lockout_duration: Duration,
+    lockdown_duration: Duration,
     two_factor_issuer: String,
 }
 
@@ -116,7 +104,8 @@ impl SecurityService {
             token_expiry: Duration::hours(24),
             password_min_length: 8,
             max_failed_attempts: 5,
-            lockdown_duration: Duration::minutes(30),
+            lockout_duration: Duration::minutes(15),
+            lockdown_duration: Duration::hours(1),
             two_factor_issuer: "ClawController".to_string(),
         }
     }
@@ -130,8 +119,7 @@ impl SecurityService {
         user_agent: &str,
     ) -> Result<Option<(User, String)>, anyhow::Error> {
         // Find user by username
-        let user = query_as!(
-            User,
+        let user = sqlx::query_as::<sqlx::Sqlite, User>(
             "SELECT * FROM users WHERE username = ? AND is_active = 1"
         )
         .bind(username)
@@ -148,15 +136,15 @@ impl SecurityService {
             }
 
             // Check failed attempts
-            if user.failed_login_attempts >= self.max_failed_attempts {
+            if user.failed_login_attempts >= self.max_failed_attempts as i32 {
                 warn!("User {} has exceeded max failed attempts", username);
                 // Lock the account
                 let locked_until = Utc::now() + self.lockout_duration;
-                query!(
-                    "UPDATE users SET locked_until = ?, failed_login_attempts = 0 WHERE id = ?"
+                sqlx::query!(
+                    "UPDATE users SET locked_until = ?, failed_login_attempts = 0 WHERE id = ?",
+                    locked_until,
+                    user.id
                 )
-                .bind(locked_until)
-                .bind(&user.id)
                 .execute(pool)
                 .await?;
                 return Ok(None);
@@ -164,13 +152,13 @@ impl SecurityService {
 
             // Verify password
             if let Some(hash) = &user.password_hash {
-                if verify(password, hash).await.is_ok() {
+                if verify(password, hash).is_ok() {
                     // Reset failed attempts on successful login
                     if user.failed_login_attempts > 0 {
-                        query!(
-                            "UPDATE users SET failed_login_attempts = 0, last_login = CURRENT_TIMESTAMP WHERE id = ?"
+                        sqlx::query!(
+                            "UPDATE users SET failed_login_attempts = 0, last_login = CURRENT_TIMESTAMP WHERE id = ?",
+                            user.id
                         )
-                        .bind(&user.id)
                         .execute(pool)
                         .await?;
                     }
@@ -181,6 +169,7 @@ impl SecurityService {
                         "login_success",
                         "User logged in successfully",
                         Some(ip_address.to_string()),
+                        None,
                         Some(&user.id),
                         serde_json::json!({
                             "username": username,
@@ -192,11 +181,11 @@ impl SecurityService {
                 } else {
                     // Increment failed attempts
                     let new_attempts = user.failed_login_attempts + 1;
-                    query!(
-                        "UPDATE users SET failed_login_attempts = ? WHERE id = ?"
+                    sqlx::query!(
+                        "UPDATE users SET failed_login_attempts = ? WHERE id = ?",
+                        new_attempts,
+                        user.id
                     )
-                    .bind(new_attempts)
-                    .bind(&user.id)
                     .execute(pool)
                     .await?;
 
@@ -206,6 +195,7 @@ impl SecurityService {
                         "login_failure",
                         "Invalid password attempt",
                         Some(ip_address.to_string()),
+                        None,
                         Some(&user.id),
                         serde_json::json!({
                             "username": username,
@@ -214,14 +204,14 @@ impl SecurityService {
                         }).to_string(),
                     ).await?;
 
-                    if new_attempts >= self.max_failed_attempts {
+                    if new_attempts >= self.max_failed_attempts as i32 {
                         // Lock the account
                         let locked_until = Utc::now() + self.lockout_duration;
-                        query!(
-                            "UPDATE users SET locked_until = ? WHERE id = ?"
+                        sqlx::query!(
+                            "UPDATE users SET locked_until = ? WHERE id = ?",
+                            locked_until,
+                            user.id
                         )
-                        .bind(locked_until)
-                        .bind(&user.id)
                         .execute(pool)
                         .await?;
                     }
@@ -242,9 +232,8 @@ impl SecurityService {
         ip_address: &str,
     ) -> Result<User, anyhow::Error> {
         // Check if username already exists
-        let existing = query_as!(
-            User,
-            "SELECT id FROM users WHERE username = ? OR email = ?"
+        let existing = sqlx::query_as::<sqlx::Sqlite, User>(
+            "SELECT * FROM users WHERE username = ? OR email = ?"
         )
         .bind(&request.username)
         .bind(&request.email)
@@ -261,7 +250,7 @@ impl SecurityService {
         }
 
         // Hash password
-        let password_hash = hash(&request.password, DEFAULT_COST).await?;
+        let password_hash = hash(&request.password, DEFAULT_COST)?;
 
         // Create user
         let user_id = uuid::Uuid::new_v4().to_string();
@@ -282,44 +271,49 @@ impl SecurityService {
             permissions: request.permissions.unwrap_or_default(),
             created_at: now,
             updated_at: now,
-            last_password_change: now,
+            timezone: Some("UTC".to_string()),
+            language: Some("en".to_string()),
+            created_by: None,
+            created_ip: None,
+            modified_at: None,
+            modified_by: None,
+            last_login_ip: None,
+            last_password_change: Utc::now(),
             two_factor_enabled: false,
             two_factor_secret: None,
             email_verified: false,
             phone_verified: false,
             profile_picture: None,
-            timezone: "UTC".to_string(),
-            language: "en".to_string(),
         };
 
         // Insert user
-        query!(
+        sqlx::query!(
             r#"
             INSERT INTO users (
                 id, username, email, password_hash, role, is_active, 
                 security_level, access_level, permissions, created_at, updated_at, 
                 last_password_change, two_factor_enabled, 
                 email_verified, phone_verified, timezone, language
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            "#
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            "#,
+            user.id,
+            user.username,
+            user.email,
+            user.password_hash,
+            user.role,
+            user.is_active,
+            user.security_level,
+            user.access_level,
+            serde_json::to_string(&user.permissions)?,
+            user.created_at,
+            user.updated_at,
+            user.last_password_change,
+            user.two_factor_enabled,
+            user.email_verified,
+            user.phone_verified,
+            user.timezone,
+            user.language
         )
-        .bind(&user.id)
-        .bind(&user.username)
-        .bind(&user.email)
-        .bind(&user.password_hash)
-        .bind(&user.role)
-        .bind(&user.is_active)
-        .bind(format!("{:?}", user.security_level))
-        .bind(format!("{:?}", user.access_level))
-        .bind(serde_json::to_string(&user.permissions)?)
-        .bind(&user.created_at)
-        .bind(&user.updated_at)
-        .bind(&user.last_password_change)
-        .bind(&user.two_factor_enabled)
-        .bind(&user.email_verified)
-        .bind(&user.phone_verified)
-        .bind(&user.timezone)
-        .bind(&user.language)
         .execute(pool)
         .await?;
 
@@ -329,6 +323,7 @@ impl SecurityService {
             "user_created",
             "New user account created",
             Some(ip_address.to_string()),
+            None,
             Some(&user.id),
             serde_json::json!({
                 "username": user.username,
@@ -350,8 +345,7 @@ impl SecurityService {
         request: UpdateUserRequest,
         modified_by: &str,
     ) -> Result<User, anyhow::Error> {
-        let mut user = query_as!(
-            User,
+        let user = sqlx::query_as::<sqlx::Sqlite, User>(
             "SELECT * FROM users WHERE id = ? AND is_active = 1"
         )
         .bind(user_id)
@@ -409,11 +403,11 @@ impl SecurityService {
             .await?;
 
         // Fetch updated user
-        let updated_user = query_as!(
+        let updated_user = sqlx::query_as::<sqlx::Sqlite, 
             User,
-            "SELECT * FROM users WHERE id = ?"
+            "SELECT * FROM users WHERE id = ?",
+            user_id
         )
-        .bind(user_id)
         .fetch_one(pool)
         .await?;
 
@@ -422,6 +416,7 @@ impl SecurityService {
             pool,
             "user_updated",
             "User profile updated",
+            None,
             None,
             Some(user_id),
             serde_json::json!({
@@ -440,8 +435,7 @@ impl SecurityService {
         request: ChangePasswordRequest,
         ip_address: &str,
     ) -> Result<(), anyhow::Error> {
-        let user = query_as!(
-            User,
+        let user = sqlx::query_as::<sqlx::Sqlite, User>(
             "SELECT * FROM users WHERE id = ? AND is_active = 1"
         )
         .bind(user_id)
@@ -450,12 +444,13 @@ impl SecurityService {
 
         // Verify current password
         if let Some(hash) = &user.password_hash {
-            if !verify(&request.current_password, hash).await.is_ok() {
+            if !verify(&request.current_password, hash).is_ok() {
                 self.log_security_event(
                     pool,
                     "password_change_failed",
                     "Invalid current password",
                     Some(ip_address.to_string()),
+                    None,
                     Some(user_id),
                     serde_json::json!({
                         "reason": "invalid_current_password"
@@ -477,14 +472,14 @@ impl SecurityService {
         }
 
         // Hash new password
-        let new_hash = hash(&request.new_password, DEFAULT_COST).await?;
+        let new_hash = hash(&request.new_password, DEFAULT_COST)?;
 
         // Update password and reset failed attempts
-        query!(
-            "UPDATE users SET password_hash = ?, last_password_change = CURRENT_TIMESTAMP, failed_login_attempts = 0 WHERE id = ?"
+        sqlx::query!(
+            "UPDATE users SET password_hash = ?, last_password_change = CURRENT_TIMESTAMP, failed_login_attempts = 0 WHERE id = ?",
+            new_hash,
+            user_id
         )
-        .bind(new_hash)
-        .bind(user_id)
         .execute(pool)
         .await?;
 
@@ -494,6 +489,7 @@ impl SecurityService {
             "password_changed",
             "User changed password",
             Some(ip_address.to_string()),
+            None,
             Some(user_id),
             serde_json::json!({
                 "changed_by": "user"
@@ -512,8 +508,7 @@ impl SecurityService {
         ip_address: &str,
     ) -> Result<(), anyhow::Error> {
         // Find user by email
-        let user = query_as!(
-            User,
+        let user = sqlx::query_as::<sqlx::Sqlite, User>(
             "SELECT * FROM users WHERE email = ? AND is_active = 1"
         )
         .bind(&request.email)
@@ -537,14 +532,14 @@ impl SecurityService {
             }
 
             // Hash new password
-            let new_hash = hash(&request.new_password, DEFAULT_COST).await?;
+            let new_hash = hash(&request.new_password, DEFAULT_COST)?;
 
             // Update password and reset failed attempts
-            query!(
-                "UPDATE users SET password_hash = ?, last_password_change = CURRENT_TIMESTAMP, failed_login_attempts = 0, locked_until = NULL WHERE id = ?"
+            sqlx::query!(
+                "UPDATE users SET password_hash = ?, last_password_change = CURRENT_TIMESTAMP, failed_login_attempts = 0, locked_until = NULL WHERE id = ?",
+                new_hash,
+                user.id
             )
-            .bind(new_hash)
-            .bind(&user.id)
             .execute(pool)
             .await?;
 
@@ -554,6 +549,7 @@ impl SecurityService {
                 "password_reset",
                 "Password reset completed",
                 Some(ip_address.to_string()),
+                None,
                 Some(&user.id),
                 serde_json::json!({
                     "email": user.email,
@@ -584,8 +580,7 @@ impl SecurityService {
         };
 
         let session_id = uuid::Uuid::new_v4().to_string();
-        let token = self.generate_token(&query_as!(
-            User,
+        let token = self.generate_token(&sqlx::query_as::<sqlx::Sqlite, User>(
             "SELECT * FROM users WHERE id = ?"
         )
         .bind(user_id)
@@ -608,31 +603,29 @@ impl SecurityService {
         };
 
         // Clean up expired sessions
-        query!(
-            "DELETE FROM sessions WHERE expires_at < CURRENT_TIMESTAMP"
-        )
-        .execute(pool)
-        .await?;
+        sqlx::query!("DELETE FROM sessions WHERE expires_at < CURRENT_TIMESTAMP")
+            .execute(pool)
+            .await?;
 
         // Insert new session
-        query!(
+        sqlx::query!(
             r#"
             INSERT INTO sessions (
-n                id, user_id, token, expires_at, created_at, last_accessed, ip_address, 
-n                user_agent, is_active, device_fingerprint
-n            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-n            "#
+            id, user_id, token, expires_at, created_at, last_accessed, ip_address, 
+            user_agent, is_active, device_fingerprint
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        "#,
+            session.id,
+            session.user_id,
+            session.token,
+            session.expires_at,
+            session.created_at,
+            session.last_accessed,
+            session.ip_address,
+            session.user_agent,
+            session.is_active,
+            session.device_fingerprint
         )
-        .bind(&session.id)
-        .bind(&session.user_id)
-        .bind(&session.token)
-        .bind(&session.expires_at)
-        .bind(&session.created_at)
-        .bind(&session.last_accessed)
-        .bind(&session.ip_address)
-        .bind(&session.user_agent)
-        .bind(&session.is_active)
-        .bind(&session.device_fingerprint)
         .execute(pool)
         .await?;
 
@@ -642,6 +635,7 @@ n            "#
             "session_created",
             "New session created",
             Some(ip_address.to_string()),
+            None,
             Some(user_id),
             serde_json::json!({
                 "session_id": session_id,
@@ -660,13 +654,12 @@ n            "#
         ip_address: &str,
     ) -> Result<Option<User>, anyhow::Error> {
         // Find session by token
-        let session = query_as!(
-            Session,
+        let session = sqlx::query_as::<sqlx::Sqlite, Session>(
             r#"
-            SELECT s.*, u.* FROM sessions s
+            SELECT s.id, s.user_id, s.token, s.expires_at, s.created_at, s.last_accessed, s.ip_address, s.user_agent, s.is_active, s.device_fingerprint FROM sessions s
             JOIN users u ON s.user_id = u.id
             WHERE s.token = ? AND s.is_active = 1 AND (s.expires_at > CURRENT_TIMESTAMP)
-n            "#
+            "#
         )
         .bind(token)
         .fetch_optional(pool)
@@ -674,7 +667,7 @@ n            "#
 
         if let Some(session) = session {
             // Update last_accessed
-            query!(
+            sqlx::query(
                 "UPDATE sessions SET last_accessed = CURRENT_TIMESTAMP WHERE id = ?"
             )
             .bind(&session.id)
@@ -689,6 +682,7 @@ n            "#
                     "suspicious_activity",
                     "Session IP address changed",
                     Some(ip_address.to_string()),
+                    None,
                     Some(&session.user_id),
                     serde_json::json!({
                         "old_ip": session.ip_address,
@@ -699,8 +693,7 @@ n            "#
             }
 
             // Return the associated user
-            let user = query_as!(
-                User,
+            let user = sqlx::query_as::<sqlx::Sqlite, User>(
                 "SELECT * FROM users WHERE id = ? AND is_active = 1"
             )
             .bind(&session.user_id)
@@ -714,10 +707,10 @@ n            "#
     }
 
     pub async fn revoke_session(&self, pool: &SqlitePool, token: &str) -> Result<(), anyhow::Error> {
-        query!(
-            "UPDATE sessions SET is_active = 0 WHERE token = ?"
+        sqlx::query!(
+            "UPDATE sessions SET is_active = 0 WHERE token = ?",
+            token
         )
-        .bind(token)
         .execute(pool)
         .await?;
 
@@ -725,10 +718,10 @@ n            "#
     }
 
     pub async fn revoke_all_user_sessions(&self, pool: &SqlitePool, user_id: &str) -> Result<(), anyhow::Error> {
-        query!(
-            "UPDATE sessions SET is_active = 0 WHERE user_id = ?"
+        sqlx::query!(
+            "UPDATE sessions SET is_active = 0 WHERE user_id = ?",
+            user_id
         )
-        .bind(user_id)
         .execute(pool)
         .await?;
 
@@ -750,22 +743,24 @@ n            "#
             access_level: user.access_level,
         };
 
-        let header = JwtHeader::new(
-            Algorithm::HS512,
-            JwtHeader::default(),
-        );
+        let header = Header::new(Algorithm::HS512);
 
-        let token = encode(&header, &self.jwt_secret, &claims)?;
+        let token = encode(
+            &header,
+            &claims,
+            &EncodingKey::from_secret(self.jwt_secret.as_ref()),
+        )?;
         
         Ok(token)
     }
 
     pub fn generate_device_fingerprint(&self, user_agent: &str, ip_address: &str) -> String {
-        use std::collections::hash_map::Default;
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
         
-        let mut hasher = Default::default();
-        hasher.hash(user_agent);
-        hasher.hash(ip_address);
+        let mut hasher = DefaultHasher::new();
+        user_agent.hash(&mut hasher);
+        ip_address.hash(&mut hasher);
         format!("{:x}", hasher.finish())
     }
 
@@ -775,6 +770,7 @@ n            "#
         event_type: &str,
         description: &str,
         ip_address: Option<String>,
+        target_resource: Option<String>,
         user_id: Option<&str>,
         details: String,
     ) -> Result<(), sqlx::Error> {
@@ -790,25 +786,26 @@ n            "#
 
         let severity = match risk_score {
             0..=20 => "low",
-            21..50 => "medium",
-            51..80 => "high",
+            21..=50 => "medium",
+            51..=80 => "high",
             _ => "critical",
         };
 
-        query!(
+        sqlx::query!(
             r#"
             INSERT INTO security_events (
-n                id, event_type, severity, description, source_ip, target_resource, user_id, details, created_at
-n            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-n            "#
+                id, event_type, severity, description, source_ip, target_resource, user_id, details, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            "#,
+            uuid::Uuid::new_v4().to_string(),
+            event_type,
+            severity,
+            description,
+            ip_address,
+            target_resource,
+            user_id,
+            details
         )
-        .bind(uuid::Uuid::new_v4().to_string())
-        .bind(event_type)
-        .bind(severity)
-        .bind(description)
-        .bind(ip_address)
-        .bind(user_id)
-        .bind(details)
         .execute(pool)
         .await?;
 
@@ -892,21 +889,22 @@ n            "#
 }
 
 // Utility functions for security
-pub async fn hash_password(password: &str) -> Result<String, bcrypt::BcryptError> {
-    hash(password, DEFAULT_COST).await
+pub fn hash_password(password: &str) -> Result<String, bcrypt::BcryptError> {
+    hash(password, DEFAULT_COST)
 }
 
-pub async fn verify_password(password: &str, hash: &str) -> Result<bool, bcrypt::BcryptError> {
-    verify(password, hash).await
+pub fn verify_password(password: &str, hash: &str) -> Result<bool, bcrypt::BcryptError> {
+    verify(password, hash)
 }
 
 pub fn generate_secure_token() -> String {
-    use rand::Rng;
     use rand::distributions::Alphanumeric;
+    use rand::Rng;
     
-    let rng = rand::thread_rng();
-    (0..128)
-        .map(|_| rng.sample(&Alphanumeric()))
+    rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(128)
+        .map(char::from)
         .collect()
 }
 
@@ -942,7 +940,7 @@ pub fn validate_password_strength(password: &str) -> (bool, Vec<String>) {
         "welcome", "monkey", "dragon", "password1", "123456789",
     ];
     
-    if common_passwords.contains(&password.to_lowercase()) {
+    if common_passwords.contains(&password.to_lowercase().as_str()) {
         issues.push("Password is too common".to_string());
     }
     
@@ -1049,7 +1047,7 @@ pub enum SecurityError {
     TokenExpired,
     InvalidToken,
     DatabaseError(String),
-    ValidationError(String),
+    ClawValidationError(String),
     RateLimited,
     Unauthorized,
     InternalServerError,
@@ -1065,7 +1063,7 @@ impl std::fmt::Display for SecurityError {
             SecurityError::TokenExpired => write!(f, "Token expired"),
             SecurityError::InvalidToken => write!(f, "Invalid token"),
             SecurityError::DatabaseError(msg) => write!(f, "Database error: {}", msg),
-            SecurityError::ValidationError(msg) => write!(f, "Validation error: {}", msg),
+            SecurityError::ClawValidationError(msg) => write!(f, "Validation error: {}", msg),
             SecurityError::RateLimited => write!(f, "Rate limited"),
             SecurityError::Unauthorized => write!(f, "Unauthorized"),
             SecurityError::InternalServerError => write!(f, "Internal server error"),
@@ -1073,20 +1071,85 @@ impl std::fmt::Display for SecurityError {
     }
 }
 
-impl std::error::Error for SecurityError {
+impl From<sqlx::Error> for SecurityError {
     fn from(error: sqlx::Error) -> Self {
         SecurityError::DatabaseError(error.to_string())
     }
 }
 
-impl std::error::Error for bcrypt::BcryptError {
-    fn from(error: bcrypt::BcryptError) -> Self {
+impl From<bcrypt::BcryptError> for SecurityError {
+    fn from(_: bcrypt::BcryptError) -> Self {
         SecurityError::InvalidCredentials
     }
 }
 
-impl std::error::Error for serde_json::Error {
+impl From<serde_json::Error> for SecurityError {
     fn from(error: serde_json::Error) -> Self {
-        SecurityError::ValidationError(error.to_string())
+        SecurityError::ClawValidationError(error.to_string())
     }
+}
+
+// Axum Handlers
+pub async fn authenticate_user(
+    State(state): State<AppState>,
+    Json(payload): Json<LoginRequest>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let service = SecurityService::new("temp-secret".to_string());
+    match service.authenticate_user(&state.pool, &payload.username, &payload.password, "0.0.0.0", "unknown").await {
+        Ok(Some((user, token))) => {
+            Ok(Json(LoginResponse {
+                token,
+                user: UserResponse {
+                    id: user.id.clone(),
+                    username: user.username.clone(),
+                    email: user.email.clone(),
+                    role: user.role.clone(),
+                    security_level: user.security_level,
+                    access_level: user.access_level,
+                    is_active: user.is_active,
+                    created_at: user.created_at,
+                    email_verified: user.email_verified,
+                    language: user.language.clone(),
+                    profile_picture: user.profile_picture.clone(),
+                    timezone: user.timezone.clone(),
+                    last_login: user.last_login,
+                    two_factor_enabled: user.two_factor_enabled,
+                },
+                expires_at: (Utc::now() + Duration::hours(24)).to_rfc3339(),
+                permissions: user.permissions.unwrap_or_default(),
+                two_factor_required: false,
+            }))
+        }
+        Ok(None) => Err((StatusCode::UNAUTHORIZED, "Invalid credentials".to_string())),
+        Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
+    }
+}
+
+pub async fn create_user(
+    State(state): State<AppState>,
+    Json(payload): Json<CreateUserRequest>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let service = SecurityService::new("temp-secret".to_string());
+    service.create_user(&state.pool, payload, "system", "0.0.0.0").await
+        .map(|user| Json(user))
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+}
+
+pub async fn update_user(
+    Path(id): Path<String>,
+    State(state): State<AppState>,
+    Json(payload): Json<UpdateUserRequest>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let service = SecurityService::new("temp-secret".to_string());
+    service.update_user(&state.pool, &id, payload, "system").await
+        .map(|user| Json(user))
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+}
+
+pub async fn change_password() -> impl IntoResponse {
+    (StatusCode::NOT_IMPLEMENTED, "Not implemented")
+}
+
+pub async fn create_session() -> impl IntoResponse {
+    (StatusCode::NOT_IMPLEMENTED, "Not implemented")
 }

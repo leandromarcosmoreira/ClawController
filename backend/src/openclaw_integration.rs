@@ -51,7 +51,7 @@ impl ConfigCache {
     }
 
     pub async fn get(&self, key: &str) -> Option<Value> {
-        let cache = self.inner.read().await;
+        let mut cache = self.inner.write().await;
         if let Some(cached) = cache.get(key) {
             if cached.cached_at + cached.ttl > Utc::now() {
                 return Some(cached.data.clone());
@@ -90,7 +90,7 @@ impl ConfigCache {
 }
 
 /// Global configuration cache instance
-static CONFIG_CACHE: Lazy<ConfigCache> = Lazy::new(|| ConfigCache::new(1000));
+pub(crate) static CONFIG_CACHE: Lazy<ConfigCache> = Lazy::new(|| ConfigCache::new(1000));
 
 /// Metrics collector for OpenClaw integration
 #[derive(Clone)]
@@ -115,7 +115,7 @@ impl OpenClawMetrics {
 }
 
 /// Global metrics instance
-static METRICS: Lazy<OpenClawMetrics> = Lazy::new(OpenClawMetrics::new);
+pub(crate) static METRICS: Lazy<OpenClawMetrics> = Lazy::new(OpenClawMetrics::new);
 
 /// Security validation utilities
 pub struct SecurityValidator;
@@ -201,34 +201,27 @@ impl Default for OpenClawResilience {
 }
 
 impl OpenClawResilience {
-    pub async fn execute_with_resilience<F, T>(&self, operation: F) -> Result<T, Box<dyn std::error::Error + Send + Sync>>
+    pub async fn execute_with_resilience<F, Fut, T>(&self, operation: F) -> Result<T, Box<dyn std::error::Error + Send + Sync>>
     where
-        F: Fn() -> Result<T, Box<dyn std::error::Error + Send + Sync>> + Clone,
+        F: Fn() -> Fut + Clone,
+        Fut: std::future::Future<Output = Result<T, Box<dyn std::error::Error + Send + Sync>>>,
     {
         let mut last_error = None;
         
         for attempt in 1..=self.max_retries {
             debug!("OpenClaw operation attempt {}/{}", attempt, self.max_retries);
             
-            match tokio::time::timeout(self.timeout_duration, async {
-                operation()
-            }).await {
-                Ok(Ok(result)) => {
-                    if attempt > 1 {
-                        info!("OpenClaw operation succeeded on attempt {}", attempt);
-                    }
-                    return Ok(result);
-                }
+            match tokio::time::timeout(self.timeout_duration, operation()).await {
+                Ok(Ok(result)) => return Ok(result),
                 Ok(Err(e)) => {
-                    warn!("OpenClaw operation failed on attempt {}: {}", attempt, e);
+                    warn!("OpenClaw operation error (attempt {}): {}", attempt, e);
                     last_error = Some(e);
                 }
                 Err(_) => {
-                    warn!("OpenClaw operation timed out on attempt {}", attempt);
+                    warn!("OpenClaw operation timed out (attempt {})", attempt);
                     last_error = Some("Operation timed out".into());
                 }
             }
-            
             // Exponential backoff
             if attempt < self.max_retries {
                 let backoff = Duration::from_millis(100 * 2_u64.pow(attempt - 1));
@@ -248,25 +241,23 @@ pub async fn get_openclaw_agent_configs(
     State(state): State<crate::AppState>,
 ) -> Result<Json<Vec<OpenClawAgentConfig>>, (StatusCode, String)> {
     let start_time = std::time::Instant::now();
-    METRICS.config_reads_total.increment();
+    METRICS.config_reads_total.increment(1);
     
     // Try cache first
     if let Some(cached_config) = CONFIG_CACHE.get("openclaw_config").await {
-        METRICS.config_cache_hits_total.increment();
+        METRICS.config_cache_hits_total.increment(1);
         debug!("Config retrieved from cache");
         
         let configs = parse_configs_from_value(&cached_config)?;
-        histogram!("openclaw_config_parse_duration", start_time.elapsed().as_secs_f64());
+        histogram!("openclaw_config_parse_duration").record(start_time.elapsed().as_secs_f64());
         
         return Ok(Json(configs));
     }
 
     // Cache miss - read from file
     let resilience = OpenClawResilience::default();
-    let configs = resilience.execute_with_resilience(|| {
-        Box::pin(async {
-            read_and_parse_openclaw_config().await
-        })
+    let configs = resilience.execute_with_resilience(|| async {
+        read_and_parse_openclaw_config().await
     }).await.map_err(|e| {
         error!("Failed to read OpenClaw config: {}", e);
         (StatusCode::SERVICE_UNAVAILABLE, format!("Cannot read openclaw config: {}", e))
@@ -279,7 +270,7 @@ pub async fn get_openclaw_agent_configs(
     
     CONFIG_CACHE.put("openclaw_config".to_string(), config_value.clone(), Duration::from_secs(300)).await;
     
-    histogram!("openclaw_config_sync_duration", start_time.elapsed().as_secs_f64());
+    histogram!("openclaw_config_sync_duration").record(start_time.elapsed().as_secs_f64());
     info!("Successfully loaded {} agent configurations", configs.len());
     
     Ok(Json(configs))
@@ -298,7 +289,7 @@ pub async fn get_openclaw_agent_config(
     // Try cache first
     let cache_key = format!("agent_config_{}", agent_id);
     if let Some(cached_config) = CONFIG_CACHE.get(&cache_key).await {
-        METRICS.config_cache_hits_total.increment();
+        METRICS.config_cache_hits_total.increment(1);
         
         let config: OpenClawAgentConfig = serde_json::from_value(cached_config)
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Deserialization error: {}", e)))?;
@@ -597,7 +588,7 @@ async fn execute_batch_agent_updates(
     Ok(updated_count)
 }
 
-fn calculate_agent_health_score(agent: &Agent, openclaw_config: Option<&OpenClawAgentConfig>) -> f64 {
+pub(crate) fn calculate_agent_health_score(agent: &Agent, openclaw_config: Option<&OpenClawAgentConfig>) -> f64 {
     let mut score = 100.0;
     
     // Deduct points for model failures
@@ -624,5 +615,39 @@ fn calculate_agent_health_score(agent: &Agent, openclaw_config: Option<&OpenClaw
     score.max(0.0).min(100.0)
 }
 
+pub async fn get_agent_parameters(
+    Path(id): Path<String>,
+    State(state): State<crate::AppState>,
+) -> impl IntoResponse {
+    (StatusCode::NOT_IMPLEMENTED, "Not implemented")
+}
+
+pub async fn update_agent_parameters(
+    Path(id): Path<String>,
+    State(state): State<crate::AppState>,
+    Json(payload): Json<Value>,
+) -> impl IntoResponse {
+    (StatusCode::NOT_IMPLEMENTED, Json(serde_json::json!({"status": "error", "message": "Not implemented"})))
+}
+
+pub async fn get_agent_parameter_history(
+    Path(id): Path<String>,
+    State(state): State<crate::AppState>,
+) -> impl IntoResponse {
+    (StatusCode::NOT_IMPLEMENTED, "Not implemented")
+}
+
+pub async fn validate_agent_config() -> impl IntoResponse {
+    (StatusCode::NOT_IMPLEMENTED, "Not implemented")
+}
+
+pub async fn export_agent_configs() -> impl IntoResponse {
+    (StatusCode::NOT_IMPLEMENTED, "Not implemented")
+}
+
+pub async fn import_agent_configs() -> impl IntoResponse {
+    (StatusCode::NOT_IMPLEMENTED, "Not implemented")
+}
+
 // Re-export other functions from the original implementation
-pub use super::openclaw_integration_helpers::*;
+pub use crate::openclaw_integration_helpers::*;
